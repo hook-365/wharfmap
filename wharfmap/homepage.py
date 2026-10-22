@@ -16,14 +16,15 @@ from __future__ import annotations
 import pathlib
 import re
 
+from . import dockerfs
 from .discover import Graph
 from .refs import host_path, hostport_of
 
 
-def _yaml(path: pathlib.Path):
+def _yaml(text: str):
     try:
         import yaml  # type: ignore
-        return yaml.safe_load(path.read_text(encoding="utf-8", errors="replace"))
+        return yaml.safe_load(text)
     except ImportError:
         return None
     except Exception:
@@ -34,16 +35,18 @@ def _unq(s: str) -> str:
     return s.strip().strip("'\"")
 
 
-def layout_groups(settings: pathlib.Path) -> list[str]:
+def layout_groups(settings: pathlib.Path, text: str | None = None) -> list[str]:
     """Group names under `layout:` in order."""
-    if not settings.exists():
-        return []
-    doc = _yaml(settings)
+    if text is None:
+        if not settings.exists():
+            return []
+        text = settings.read_text(encoding="utf-8", errors="replace")
+    doc = _yaml(text)
     if isinstance(doc, dict):
         lay = doc.get("layout") or {}
         return [str(k) for k in (lay.keys() if isinstance(lay, dict) else [list(d)[0] for d in lay if isinstance(d, dict)])]
     out, inside = [], False
-    for raw in settings.read_text(encoding="utf-8", errors="replace").splitlines():
+    for raw in text.splitlines():
         line = raw.split("#", 1)[0].rstrip()
         if not line.strip():
             continue
@@ -58,11 +61,13 @@ def layout_groups(settings: pathlib.Path) -> list[str]:
     return out
 
 
-def services(path: pathlib.Path) -> list[dict]:
+def services(path: pathlib.Path, text: str | None = None) -> list[dict]:
     """[{group, name, href, description, container}] from services.yaml."""
-    if not path.exists():
-        return []
-    doc = _yaml(path)
+    if text is None:
+        if not path.exists():
+            return []
+        text = path.read_text(encoding="utf-8", errors="replace")
+    doc = _yaml(text)
     out: list[dict] = []
     if isinstance(doc, list):
         for grp in doc:
@@ -80,7 +85,7 @@ def services(path: pathlib.Path) -> list[dict]:
     if doc is not None:
         return out
     group = cur = None
-    for raw in path.read_text(encoding="utf-8", errors="replace").splitlines():
+    for raw in text.splitlines():
         line = raw.split("#", 1)[0].rstrip()
         if not line.strip():
             continue
@@ -102,15 +107,25 @@ def apply(g: Graph) -> dict:
     """Fill container titles/groups/descriptions/hrefs from services.yaml and return the group order."""
     cfg = g.cfg
     cdir = cfg.homepage_config_dir
+    hp = next((c for c in g.containers if c.get("app") == "Homepage" and not c.get("ghost")), None)
     if not cdir:
-        hp = next((c for c in g.containers if c.get("app") == "Homepage" and not c.get("ghost")), None)
         cdir = host_path(hp, "/app/config") if hp else None
-    if not cdir:
+    d = pathlib.Path(cdir) if cdir else None
+    how = "host"
+    if d and (d / "settings.yaml").exists():
+        groups = layout_groups(d / "settings.yaml")
+        svcs = services(d / "services.yaml")
+    elif hp:  # no reachable mount: fetch the two files through the Docker API
+        got = dict(dockerfs.read_glob(hp["name"], "/app/config/*.yaml"))
+        if not got:
+            return {"groups": [], "services": 0, "dir": None}
+        groups = layout_groups(pathlib.Path("settings.yaml"), got.get("/app/config/settings.yaml", ""))
+        svcs = services(pathlib.Path("services.yaml"), got.get("/app/config/services.yaml", ""))
+        d, how = pathlib.Path(f"{hp['name']}:/app/config"), "docker-api"
+    else:
         return {"groups": [], "services": 0, "dir": None}
-    d = pathlib.Path(cdir)
-    groups = layout_groups(d / "settings.yaml")
     matched = 0
-    for s in services(d / "services.yaml"):
+    for s in svcs:
         c = None
         if s.get("container") and s["container"] in g.by_name:
             c = g.by_name[s["container"]]
@@ -126,4 +141,4 @@ def apply(g: Graph) -> dict:
         c["group"] = c["group"] or s["group"]
         c["desc"] = c["desc"] or (s.get("description") or "")
         c["href"] = c["href"] or s.get("href")
-    return {"groups": groups, "services": matched, "dir": str(d)}
+    return {"groups": groups, "services": matched, "dir": str(d), "how": how}

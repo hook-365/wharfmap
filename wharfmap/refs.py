@@ -16,6 +16,7 @@ import json
 import pathlib
 import re
 
+from . import dockerfs
 from .apps import known_app
 from .config import ConfigRef
 from .discover import Graph
@@ -58,10 +59,7 @@ def auto_refs(g: Graph) -> list[ConfigRef]:
         for spec in (app or {}).get("refs", []):
             typ, cpath, label = spec[0], spec[1], spec[2]
             hp = host_path(c, cpath)
-            if not hp:
-                g.refs_skipped.append({"container": c["name"], "path": cpath, "why": "not a bind mount (or Wharfmap can't see the mount)"})
-                continue
-            ref = ConfigRef(container=c["name"], type=typ, glob=hp, label=label)
+            ref = ConfigRef(container=c["name"], type=typ, glob=hp or "", label=label, cpath=cpath)
             if len(spec) > 3:
                 ref.regex = spec[3]
             ref.auto = True
@@ -82,17 +80,22 @@ def collect(g: Graph) -> None:
         fn = PARSERS.get(ref.type)
         if not fn:
             raise SystemExit(f"config_refs: unknown type {ref.type!r} (regex|frigate|homeassistant|prometheus)")
-        files = _files(ref)
-        before = len(g.edges)
-        for f in files:
+        texts, how = [], "host"
+        for f in (_files(ref) if ref.glob else []):
             try:
-                fn(g, src, ref, f.read_text(errors="replace"))
+                texts.append(f.read_text(errors="replace"))
             except OSError:
                 continue
-        if not files and getattr(ref, "auto", False):
+        if not texts and ref.cpath and g.by_name[ref.container]["status"] == "running":
+            texts = [t for _, t in dockerfs.read_glob(ref.container, ref.cpath)]
+            how = "docker-api"
+        before = len(g.edges)
+        for t in texts:
+            fn(g, src, ref, t)
+        if not texts and getattr(ref, "auto", False):
             continue  # a known-app guess that isn't there; not worth a line
-        g.refs_used.append({"container": ref.container, "type": ref.type, "glob": ref.glob, "files": len(files),
-                            "edges": len(g.edges) - before, "auto": getattr(ref, "auto", False)})
+        g.refs_used.append({"container": ref.container, "type": ref.type, "glob": ref.glob or ref.cpath, "files": len(texts),
+                            "edges": len(g.edges) - before, "auto": getattr(ref, "auto", False), "how": how})
 
 
 def _regex(g: Graph, src: str, ref: ConfigRef, txt: str) -> None:

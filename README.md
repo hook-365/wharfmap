@@ -78,9 +78,11 @@ uses it two ways:
   then the image's `EXPOSE` list.
 - **Config files.** The table says where each app keeps its config inside the container
   (`/config/config.yml` for Frigate, `.storage/core.config_entries` for Home Assistant,
-  Grafana's provisioning dir, `prometheus.yml`, Alloy and Promtail configs…). Docker says where
-  that path is on the host, via the container's bind mounts. Wharfmap reads it there. In a
-  container, mount your compose tree read-only at the same path so those files are reachable.
+  Grafana's provisioning dir, `prometheus.yml`, Alloy and Promtail configs…). If that path is a
+  bind mount Wharfmap can read, it reads it from the host. If not (a named volume, a file baked
+  into the image, or Wharfmap running in a container with nothing mounted), it fetches the file
+  through the Docker API's archive endpoint, the same call `docker cp` makes. That's a plain
+  GET, so it works through a read-only socket proxy and needs no exec and no mounts.
 
 It also reads the compose files themselves (Docker labels every container with the path of
 the file it came from) and lists services that are defined but have no container: things
@@ -93,7 +95,8 @@ don't describe your lab twice: the group order in `settings.yaml` becomes the zo
 `[zones]` isn't set (and unmapped groups keep Homepage's order instead of landing in "Other"),
 and `services.yaml` entries fill in names, descriptions, links and groups for dashboards that
 don't use labels. The config dir is found through the Homepage container's `/app/config`
-mount; `[homepage] config_dir` overrides it, `"none"` turns it off.
+mount, or fetched through the Docker API when there is no mount; `[homepage] config_dir`
+overrides it, `"none"` turns it off.
 
 `wharfmap doctor` prints what it decided and why, line by line, and the handful of things it
 couldn't work out. On the lab this was built on, that turned a 60-line config into a one-line
@@ -107,6 +110,8 @@ optional. What's left to configure is mostly taste:
 
 ```toml
 title = "Harbor Homelab Map"
+auto_refs = true               # read known apps' config files (bind mount, or via the Docker API)
+ghosts = true                  # list compose services that have no container (needs the compose files readable)
 
 [output]
 dir = "out"
@@ -143,9 +148,6 @@ order = ["Edge & infrastructure", "Media", "Home & IoT", "Ops"]
 
 [links]                        # header links; anything mentioning coffee, ko-fi, sponsor gets the accent colour
 "buy me coffee" = "https://buymeacoffee.com/you"
-
-auto_refs = true               # read known apps' config files via their bind mounts
-ghosts = true                  # list compose services that have no container (needs the compose files readable)
 
 [[config_refs]]                # only for files the known-apps table doesn't cover
 container = "grafana"

@@ -118,18 +118,13 @@ def cmd_doctor(args) -> int:
                     "expose": "  (image EXPOSE; may be generous)", "none": "  <- unknown: add to [host_net_ports]"}[c.get("ports_source", "none")]
             out.append(f"  {c['name']:24} {c.get('ports_source','none'):7} {ports}{note}")
     out.append("")
-    out.append("Config files read for wiring (auto = found via known app + bind mount, no config needed):")
+    out.append("Config files read for wiring (auto = known app; api = fetched through the Docker API, no mount needed):")
     for r in g.refs_used:
-        flag = "auto  " if r["auto"] else "toml  "
+        flag = ("auto  " if r["auto"] else "toml  ") + ("api " if r.get("how") == "docker-api" else "    ")
         state = f"{r['files']} file(s), {r['edges']} edge(s)" if r["files"] else "NO FILES MATCHED"
         out.append(f"  {r['container']:24} {r['type']:14} {flag} {state}  {r['glob']}")
     if not g.refs_used:
         out.append("  none")
-    if g.refs_skipped:
-        out.append("")
-        out.append("Known apps whose config Wharfmap could not reach (bind-mount it read-only at the same host path, or add a [[config_refs]]):")
-        for r in g.refs_skipped:
-            out.append(f"  {r['container']:24} {r['path']}  ({r['why']})")
     unresolved = [(h["domains"][0] + ("" if h.get("enabled", True) else "  (disabled)"), t["upstream"]) for h in g.ingress for t in h["targets"] if not t["container"]]
     if unresolved:
         out.append("")

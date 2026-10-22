@@ -35,6 +35,7 @@ class ConfigRef:
     label: str = "config"
     kind: str = "host"  # how an unknown LAN target is classified: host | device
     auto: bool = False  # set on refs derived from the known-apps table
+    cpath: str = ""     # path inside the container (auto refs); read via the Docker API when the host path is not reachable
 
 
 @dataclass
