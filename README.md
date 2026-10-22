@@ -32,7 +32,7 @@ Host-network containers, LAN-open ports, public domains, and Docker network memb
 up as badges on each container. Click one to see its ports, networks, domains, and
 everything it talks to, with the wiring drawn. Double-click to isolate it. Search matches
 names, images, ports, IPs, and domains. There's a light theme and a dark theme; it follows
-your system until you click the toggle.
+your system until you click the toggle. Python 3.11 or newer; the image ships 3.14.
 
 ## Running it
 
@@ -48,8 +48,9 @@ services:
       - ./wharfmap.toml:/app/wharfmap.toml:ro
 ```
 
-That serves the map on port 3008, regenerates every five minutes, and also regenerates when
-you `POST /regenerate`. If you use a read-only Docker socket proxy, set
+That serves the map on port 3008, regenerates every five minutes (`every` under `[output]`,
+or `--every N`; 0 means only when asked), and also regenerates when you `POST /regenerate`.
+The page reloads itself at the same interval when the data changes. If you use a read-only Docker socket proxy, set
 `DOCKER_HOST=tcp://dockerproxy:2375`, give the proxy `CONTAINERS=1 NETWORKS=1`, and use
 `conf_dir` for NPM (below) since the container can't exec into anything.
 
@@ -72,6 +73,10 @@ optional. The config covers the handful of things Docker can't tell us:
 
 ```toml
 title = "Harbor Homelab Map"
+
+[output]
+dir = "out"
+every = 300                    # serve: regenerate every N seconds; 0 = only on POST /regenerate
 
 [host]
 name = "harbor"

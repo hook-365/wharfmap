@@ -39,6 +39,7 @@ def build(cfg: Config) -> dict:
         "host": {"name": cfg.host_name, "ip": cfg.host_ip},
         "zones": {"order": cfg.zone_order or DEFAULT_ZONE_ORDER, "groups": cfg.zone_of_group},
         "links": cfg.links,
+        "refresh": cfg.refresh_seconds,
         "containers": containers,
         "networks": g.networks,
         "ingress": g.ingress,

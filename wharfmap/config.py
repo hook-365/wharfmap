@@ -44,6 +44,7 @@ class Config:
     host_aliases: list[str] = field(default_factory=list)
     lan_cidrs: list[str] = field(default_factory=list)  # defaults to the /24 around host_ip
     output_dir: pathlib.Path = pathlib.Path("out")
+    refresh_seconds: int = 300      # serve: regenerate this often (0 = only on POST /regenerate); the page polls at the same rate
     host_net_ports: dict[str, list[int]] = field(default_factory=dict)
     lan_hosts: dict[str, str] = field(default_factory=dict)
     ingress_provider: str = "auto"  # auto | npm | npm-api | traefik | none
@@ -94,6 +95,7 @@ def load(path: str | pathlib.Path | None) -> Config:
     cfg.host_aliases = list(host.get("aliases", []))
     cfg.lan_cidrs = list(host.get("lan_cidrs", []))
     cfg.output_dir = pathlib.Path(raw.get("output", {}).get("dir", cfg.output_dir))
+    cfg.refresh_seconds = int(raw.get("output", {}).get("every", cfg.refresh_seconds))
     cfg.host_net_ports = {k: [int(x) for x in v] for k, v in raw.get("host_net_ports", {}).items()}
     cfg.lan_hosts = dict(raw.get("lan_hosts", {}))
     ing = raw.get("ingress", {})

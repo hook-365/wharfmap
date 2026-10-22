@@ -2,7 +2,7 @@
 <meta name="darkreader-lock">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Wharfmap</title>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&family=Cookie&display=swap">
 <style>
 /* Scrolling HTML inventory instead of a zoomable canvas: zones are sections, stacks are cards, containers are chips at real text size.
    Wiring is drawn as an SVG overlay only for the selected node (or for edge layers you switch on), so the page reads as a map, not a hairball. */
@@ -119,7 +119,7 @@ body:not(.showdom) .b .dom{display:none}
 .foot{display:flex;flex-wrap:wrap;gap:6px;font-size:12px;align-items:center;margin-left:auto}
 .foot a{display:inline-flex;align-items:center;gap:5px;padding:5px 10px;border:1px solid var(--line);border-radius:12px;color:var(--muted);text-decoration:none;background:var(--bg)}
 .foot a:hover{color:var(--fg);border-color:var(--accent)}
-.foot a.coffee{color:var(--accent);border-color:var(--accent)}
+.foot a.coffee{color:var(--accent);border-color:var(--accent);font-family:"Cookie",cursive;font-size:19px;line-height:1;padding:3px 11px 4px}
 .foot a.coffee:hover{background:var(--accent-soft)}
 .foot svg{width:14px;height:14px;fill:currentColor}
 @media (max-width:900px){
@@ -190,7 +190,7 @@ async function loadData(){
 loadData().then(boot);
 function boot(DATA){
 if(!DATA){document.getElementById('zones').textContent='No graph data. Run generate.py.';return;}
-if(location.protocol.startsWith('http')) setInterval(async()=>{try{const r=await fetch('graph.json',{cache:'no-store'});const g=await r.json();if(g.generated!==DATA.generated)location.reload();}catch(e){}},5*60*1000);
+if(location.protocol.startsWith('http')&&(DATA.refresh??300)>0) setInterval(async()=>{try{const r=await fetch('graph.json',{cache:'no-store'});const g=await r.json();if(g.generated!==DATA.generated)location.reload();}catch(e){}},Math.max(30,DATA.refresh??300)*1000);
 const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
 const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 const C=DATA.containers, byId=Object.fromEntries(C.map(c=>[c.id,c]));

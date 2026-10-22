@@ -1,7 +1,7 @@
 """wharfmap: chart a Docker host.
 
   wharfmap generate [-c wharfmap.toml] [-o out]      write out/graph.json + out/index.html
-  wharfmap serve    [-c ...] [--port 3008] [--every 300]   generate, then serve the output directory
+  wharfmap serve    [-c ...] [--port 3008] [--every N]     generate, then serve the output directory
   wharfmap render -i graph.json [-o out]            index.html from a saved graph.json (no Docker needed)
   wharfmap init                                      print a starter config built from this host
 """
@@ -50,11 +50,12 @@ def cmd_serve(args) -> int:
         except Exception as e:  # keep serving the last good copy
             print("regenerate failed:", e, file=sys.stderr, flush=True)
 
+    every = cfg.refresh_seconds if args.every is None else args.every
     regen()
-    if args.every:
+    if every > 0:
         def loop():
             while True:
-                time.sleep(args.every)
+                time.sleep(every)
                 regen()
         threading.Thread(target=loop, daemon=True).start()
 
@@ -72,7 +73,7 @@ def cmd_serve(args) -> int:
 
     handler = functools.partial(Handler, directory=str(cfg.output_dir))
     srv = http.server.ThreadingHTTPServer((args.bind, args.port), handler)
-    print(f"serving {cfg.output_dir} on http://{args.bind}:{args.port}  (POST /regenerate to refresh)", flush=True)
+    print(f"serving {cfg.output_dir} on http://{args.bind}:{args.port}  (regenerate every {every} s" + ("" if every else " = only on POST /regenerate") + ")", flush=True)
     try:
         srv.serve_forever()
     except KeyboardInterrupt:
@@ -107,6 +108,7 @@ aliases = ["{cfg.host_name}.lan"]       # other names containers use for this ho
 
 [output]
 dir = "out"
+every = 300                             # serve: regenerate every N seconds (0 = only on POST /regenerate)
 
 # Docker cannot see what a host-network container listens on. List them here.
 [host_net_ports]
@@ -148,7 +150,7 @@ def main(argv=None) -> int:
     s = sub.add_parser("serve", parents=[common], help="generate and serve the output directory")
     s.add_argument("--bind", default="127.0.0.1")
     s.add_argument("--port", type=int, default=3008)
-    s.add_argument("--every", type=int, default=0, help="regenerate every N seconds (0 = only on POST /regenerate)")
+    s.add_argument("--every", type=int, default=None, help="regenerate every N seconds; overrides [output] every (default 300, 0 = only on POST /regenerate)")
     s.set_defaults(fn=cmd_serve)
     r = sub.add_parser("render", parents=[common], help="render index.html from an existing graph.json (no Docker needed)")
     r.add_argument("-i", "--input", required=True, help="graph.json to render")

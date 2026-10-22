@@ -12,6 +12,7 @@ lan_cidrs = ["10.0.0.0/24"]
 
 [output]
 dir = "out"
+every = 300                 # serve: regenerate every N seconds (0 = only on POST /regenerate)
 
 # Docker cannot see what host-network containers listen on.
 [host_net_ports]
