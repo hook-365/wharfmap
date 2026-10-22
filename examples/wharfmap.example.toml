@@ -52,6 +52,7 @@ order = ["Edge & infrastructure", "Sites & hosting", "Home & IoT", "Media & down
 "CDN & Hosting" = "Sites & hosting"
 "Collaboration" = "Sites & hosting"
 
+# Header links are optional: drop this table for none. `credit = false` (top level) also hides the project's GitHub link.
 [links]
 "buy me coffee" = "https://buymeacoffee.com/you"
 

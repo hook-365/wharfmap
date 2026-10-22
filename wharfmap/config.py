@@ -61,6 +61,7 @@ class Config:
     homepage_config_dir: str = ""   # Homepage config dir (auto: the Homepage container's /app/config mount); "" = auto, "none" = off
     ghosts: bool = True             # show compose services that are defined but have no container
     auto_refs: bool = True          # read known apps' config files via their bind mounts without being told where
+    credit: bool = True             # the small "GitHub" link to the Wharfmap project in the header; credit = false hides it
     links: dict[str, str] = field(default_factory=dict)  # footer links, e.g. "buy me coffee" = "https://buymeacoffee.com/you"
     env_skip_keys: list[str] = field(default_factory=lambda: ["PATH", "HOME", "PUID", "PGID", "TZ"])
 
@@ -118,5 +119,6 @@ def load(path: str | pathlib.Path | None) -> Config:
     cfg.ghosts = bool(raw.get("ghosts", cfg.ghosts))
     cfg.homepage_config_dir = str(raw.get("homepage", {}).get("config_dir", cfg.homepage_config_dir))
     cfg.links = {str(k): str(v) for k, v in raw.get("links", {}).items()}
+    cfg.credit = bool(raw.get("credit", cfg.credit))
     cfg.env_skip_keys = list(raw.get("env", {}).get("skip_keys", cfg.env_skip_keys))
     return cfg

@@ -146,8 +146,9 @@ order = ["Edge & infrastructure", "Media", "Home & IoT", "Ops"]
 "Security Services" = "Edge & infrastructure"
 "Media Services" = "Media"
 
-[links]                        # header links; anything mentioning coffee, ko-fi, sponsor gets the accent colour
-"buy me coffee" = "https://buymeacoffee.com/you"
+[links]                        # header links, all optional; leave the table out for none.
+"buy me coffee" = "https://buymeacoffee.com/you"   # anything mentioning coffee, ko-fi, sponsor gets the accent colour
+# credit = false               # top-level key: hides the small "GitHub" link to this project
 
 [[config_refs]]                # only for files the known-apps table doesn't cover
 container = "grafana"

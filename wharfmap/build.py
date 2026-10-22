@@ -48,6 +48,7 @@ def build(cfg: Config) -> dict:
         "host": {"name": cfg.host_name, "ip": cfg.host_ip},
         "zones": {"order": order, "groups": cfg.zone_of_group},
         "links": cfg.links,
+        "credit": cfg.credit,
         "refresh": cfg.refresh_seconds,
         "containers": containers,
         "networks": g.networks,
