@@ -37,8 +37,9 @@ def _resolve(g: Graph) -> None:
     for h in g.ingress:
         h["targets"] = []
         for u in h["upstreams"]:
+            u = u.strip().rstrip("/")
             host, _, port = u.rpartition(":") if u.count(":") == 1 else (u, "", "")
-            host = host or u
+            host = (host or u).rstrip("/")
             t = g.resolve(host, port or None)
             h["targets"].append({"upstream": u, "container": t})
         h["public"] = any(cfg.is_public_domain(d) for d in h["domains"]) and not h["internal"]

@@ -14,18 +14,10 @@ lan_cidrs = ["10.0.0.0/24"]
 dir = "out"
 every = 300                 # serve: regenerate every N seconds (0 = only on POST /regenerate)
 
-# Docker cannot see what host-network containers listen on.
+# Host-network ports are discovered (known-apps table, image EXPOSE, or the container's own sockets when
+# Wharfmap runs natively as root). Only exceptions go here; `wharfmap doctor` shows what it picked and why.
 [host_net_ports]
-homeassistant = [8123]
-plex = [32400]
-musicassistant = [8095]
-adguardhome = [53, 67, 8082]
-esphome = [6052]
-netdata = [19999]
-npmplus = [80, 443, 81]
-crowdsec = [8080]
-wireguard = [51820]
-timemachine = [445]
+adguardhome = [53, 67, 8082]   # custom UI port; the default guess would be 53/80/3000
 
 [lan_hosts]
 "10.0.0.24" = "ADS-B feeder Pi"
@@ -57,31 +49,13 @@ order = ["Edge & infrastructure", "Sites & hosting", "Home & IoT", "Media & down
 [links]
 "buy me coffee" = "https://buymeacoffee.com/you"
 
-# Wiring that only exists in application config files.
-[[config_refs]]
-container = "frigate"
-type = "frigate"
-glob = "/opt/stacks/iot-services/frigate/config/config.yml"
-
-[[config_refs]]
-container = "homeassistant"
-type = "homeassistant"
-glob = "/opt/stacks/homeassistant-services/config/.storage/core.config_entries"
-
-[[config_refs]]
-container = "grafana-adsb"
-type = "regex"
-glob = "/opt/stacks/rf-services/grafana*/**/datasources/*.y*ml"
-label = "datasource"
-
-[[config_refs]]
-container = "alloy"
-type = "regex"
-glob = "/opt/stacks/monitoring-services/alloy/config.alloy"
-regex = 'url\s*=\s*"([^"]+)"'
-label = "loki push"
-
-[[config_refs]]
-container = "prometheus-adsb"
-type = "prometheus"
-glob = "/opt/stacks/rf-services/prometheus/config/prometheus.yml"
+# Config-file wiring (Frigate cameras + MQTT, Home Assistant integrations, Grafana datasources, Prometheus
+# targets, Alloy/Promtail push URLs…) is found automatically: the known-apps table says where each app keeps
+# its config inside the container, and Docker says where that is on the host. Add [[config_refs]] only for
+# files it cannot find, or set auto_refs = false to turn it off.
+# [[config_refs]]
+# container = "my-custom-app"
+# type = "regex"                 # regex | frigate | homeassistant | prometheus
+# glob = "/opt/stacks/custom/config/*.yml"
+# regex = 'url:\\s*(\\S+)'
+# label = "backend"

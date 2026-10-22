@@ -29,7 +29,7 @@ def build(cfg: Config) -> dict:
     containers = []
     for n in g.containers:
         n = dict(n)
-        for k in ("env", "exposed", "labels"):
+        for k in ("env", "exposed", "labels", "mounts", "pid"):
             n.pop(k, None)
         containers.append(n)
 

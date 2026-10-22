@@ -10,6 +10,7 @@ import re
 import subprocess
 from dataclasses import dataclass, field
 
+from .apps import known_app
 from .config import Config
 
 
@@ -30,6 +31,8 @@ class Graph:
     ip_owner: dict[str, str] = field(default_factory=dict)   # docker IP -> container id
     lan_labels: dict[str, str] = field(default_factory=dict)
     lan_kind: dict[str, str] = field(default_factory=dict)
+    refs_used: list[dict] = field(default_factory=list)
+    refs_skipped: list[dict] = field(default_factory=list)
     _seen: set = field(default_factory=set)
 
     # ---- edges ----
@@ -108,10 +111,13 @@ def discover(cfg: Config) -> Graph:
             "href": _label(L, "href"),
             "env": c["Config"].get("Env") or [],
             "labels": L,
+            "mounts": {m["Destination"]: m["Source"] for m in c.get("Mounts") or [] if m.get("Source") and m.get("Destination")},
+            "pid": (c.get("State") or {}).get("Pid") or 0,
+            "app": (known_app(c["Config"]["Image"], name) or {}).get("name"),
             "created": c["Created"][:10],
         }
         if n["hostnet"]:
-            listen = cfg.host_net_ports.get(name) or cfg.host_net_ports.get(n["service"]) or []
+            listen, n["ports_source"] = _host_net_ports(cfg, n, c)
             n["ports"] = [{"host_ip": "0.0.0.0", "host_port": p, "cport": p, "proto": "tcp"} for p in listen]
         g.containers.append(n)
         g.by_id[c["Id"]] = n
@@ -152,6 +158,84 @@ def discover(cfg: Config) -> Graph:
     _env_edges(g)
     g.lan_labels.update(cfg.lan_hosts)
     return g
+
+
+def _host_net_ports(cfg: Config, n: dict, raw: dict) -> tuple[list[int], str]:
+    """Listen ports of a host-network container, best source first:
+    wharfmap.toml > the container's own listening sockets (/proc, when visible) > known app > image EXPOSE."""
+    listed = cfg.host_net_ports.get(n["name"]) or cfg.host_net_ports.get(n["service"])
+    if listed:
+        return sorted(set(listed)), "config"
+    if n["status"] == "running" and n["pid"]:
+        ports = [p for p in _listening_ports(n["pid"], raw.get("Id", "")) if not _ephemeral(p)]
+        if ports:
+            return ports, "proc"
+    app = known_app(n["image"], n["name"])
+    if app and app.get("ports"):
+        return sorted(set(app["ports"])), "known"
+    exposed = sorted({int(k.split("/")[0]) for k in (raw["Config"].get("ExposedPorts") or {}) if k.endswith("/tcp")})
+    if exposed:
+        return exposed, "expose"
+    return [], "none"
+
+
+def _ephemeral(port: int) -> bool:
+    """Ports in the kernel's dynamic range are transient listeners (transcoders, helpers), not services."""
+    try:
+        lo, hi = map(int, open("/proc/sys/net/ipv4/ip_local_port_range").read().split())
+    except (OSError, ValueError):
+        lo, hi = 32768, 60999
+    return lo <= port <= hi
+
+
+def _listening_ports(pid: int, cid: str = "") -> list[int]:
+    """TCP ports in LISTEN state owned by the container's own processes.
+
+    A host-network container's /proc/<pid>/net/tcp lists every socket on the host, so we can't
+    just read it: we collect the socket inodes held by processes in the container's cgroup and
+    keep only the listening sockets with those inodes. Needs the host pid namespace and enough
+    privilege to read /proc/<pid>/fd (root, or `pid: host` in the container). Otherwise: []."""
+    import os
+    pids = set()
+    try:
+        for d in os.listdir("/proc"):
+            if not d.isdigit():
+                continue
+            try:
+                if cid and cid[:12] in open(f"/proc/{d}/cgroup").read():
+                    pids.add(int(d))
+            except OSError:
+                continue
+    except OSError:
+        return []
+    if not pids:
+        pids = {pid}
+    inodes = set()
+    for p in pids:
+        try:
+            for fd in os.listdir(f"/proc/{p}/fd"):
+                try:
+                    link = os.readlink(f"/proc/{p}/fd/{fd}")
+                except OSError:
+                    continue
+                if link.startswith("socket:["):
+                    inodes.add(link[8:-1])
+        except OSError:
+            continue
+    if not inodes:
+        return []
+    ports = set()
+    for f in (f"/proc/{pid}/net/tcp", f"/proc/{pid}/net/tcp6"):
+        try:
+            with open(f) as fh:
+                next(fh)
+                for line in fh:
+                    parts = line.split()
+                    if len(parts) > 9 and parts[3] == "0A" and parts[9] in inodes:
+                        ports.add(int(parts[1].rsplit(":", 1)[1], 16))
+        except OSError:
+            continue
+    return sorted(ports)
 
 
 def _guess_stack(name: str) -> str:

@@ -10,11 +10,13 @@ read-only; only host/port is extracted, credentials in URLs are dropped (see hos
 """
 from __future__ import annotations
 
+import fnmatch
 import glob
 import json
 import pathlib
 import re
 
+from .apps import known_app
 from .config import ConfigRef
 from .discover import Graph
 
@@ -31,19 +33,66 @@ def _files(ref: ConfigRef) -> list[pathlib.Path]:
     return [pathlib.Path(f) for f in sorted(glob.glob(str(pathlib.Path(ref.glob).expanduser()), recursive=True))]
 
 
+def host_path(c: dict, container_path: str) -> str | None:
+    """Translate a path inside the container to the host path via its bind mounts (longest prefix wins)."""
+    best = None
+    for dest, src in c.get("mounts", {}).items():
+        d = dest.rstrip("/") or "/"
+        if fnmatch.fnmatch(d, container_path):  # the config file itself is the mount (e.g. /etc/alloy/config.alloy)
+            return src
+        if container_path == d or container_path.startswith(d + "/"):
+            if best is None or len(d) > len(best[0]):
+                best = (d, src)
+    if not best:
+        return None
+    d, src = best
+    return src.rstrip("/") + container_path[len(d):]
+
+
+def auto_refs(g: Graph) -> list[ConfigRef]:
+    """Config refs implied by known apps: the parser knows where the app keeps its config inside the
+    container, and Docker knows where that is on the host. Nothing to configure."""
+    out = []
+    for c in g.containers:
+        app = known_app(c["image"], c["name"])
+        for spec in (app or {}).get("refs", []):
+            typ, cpath, label = spec[0], spec[1], spec[2]
+            hp = host_path(c, cpath)
+            if not hp:
+                g.refs_skipped.append({"container": c["name"], "path": cpath, "why": "not a bind mount (or Wharfmap can't see the mount)"})
+                continue
+            ref = ConfigRef(container=c["name"], type=typ, glob=hp, label=label)
+            if len(spec) > 3:
+                ref.regex = spec[3]
+            ref.auto = True
+            out.append(ref)
+    return out
+
+
 def collect(g: Graph) -> None:
-    for ref in g.cfg.config_refs:
+    refs = list(g.cfg.config_refs)
+    if g.cfg.auto_refs:
+        explicit = {(r.container, r.type) for r in refs}
+        refs += [r for r in auto_refs(g) if (r.container, r.type) not in explicit]
+    g.refs_used = []
+    for ref in refs:
         if ref.container not in g.by_name:
             continue
         src = g.by_name[ref.container]["id"]
         fn = PARSERS.get(ref.type)
         if not fn:
             raise SystemExit(f"config_refs: unknown type {ref.type!r} (regex|frigate|homeassistant|prometheus)")
-        for f in _files(ref):
+        files = _files(ref)
+        before = len(g.edges)
+        for f in files:
             try:
                 fn(g, src, ref, f.read_text(errors="replace"))
             except OSError:
                 continue
+        if not files and getattr(ref, "auto", False):
+            continue  # a known-app guess that isn't there; not worth a line
+        g.refs_used.append({"container": ref.container, "type": ref.type, "glob": ref.glob, "files": len(files),
+                            "edges": len(g.edges) - before, "auto": getattr(ref, "auto", False)})
 
 
 def _regex(g: Graph, src: str, ref: ConfigRef, txt: str) -> None:

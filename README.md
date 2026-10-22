@@ -66,10 +66,31 @@ One thing to know before you expose it: the page is a complete list of your port
 behind them. Keep it on the LAN, behind whatever allow-list your proxy has. It binds to
 localhost by default for that reason.
 
+## What it works out without being told
+
+Two things Docker genuinely doesn't know are the listen ports of `network_mode: host`
+containers and the wiring that lives in application config files. Rather than make you type
+them, Wharfmap carries a table of known apps (`wharfmap/apps.py`, about sixty entries) and
+uses it two ways:
+
+- **Host-network ports.** In order: your config, the container's own listening sockets (read
+  from `/proc` when Wharfmap runs natively as root or with `pid: host`), the known-app default,
+  then the image's `EXPOSE` list.
+- **Config files.** The table says where each app keeps its config inside the container
+  (`/config/config.yml` for Frigate, `.storage/core.config_entries` for Home Assistant,
+  Grafana's provisioning dir, `prometheus.yml`, Alloy and Promtail configs…). Docker says where
+  that path is on the host, via the container's bind mounts. Wharfmap reads it there. In a
+  container, mount your compose tree read-only at the same path so those files are reachable.
+
+`wharfmap doctor` prints what it decided and why, line by line, and the handful of things it
+couldn't work out. On the lab this was built on, that turned a 60-line config into a one-line
+port override and a public-domain suffix. Additions to the table are the easiest pull request
+there is.
+
 ## Configuration
 
 `wharfmap init > wharfmap.toml` prints a starter file populated from your host. Every key is
-optional. The config covers the handful of things Docker can't tell us:
+optional. What's left to configure is mostly taste:
 
 ```toml
 title = "Harbor Homelab Map"
@@ -84,9 +105,8 @@ ip = "10.0.0.10"               # how other machines reach this host; auto-detect
 aliases = ["harbor.lan"]       # other names containers use for this host
 lan_cidrs = ["10.0.0.0/24"]    # what counts as "another machine on the LAN" (default: the /24 around ip)
 
-[host_net_ports]               # network_mode: host containers have no port mappings, so list theirs
-homeassistant = [8123]
-plex = [32400]
+[host_net_ports]               # only exceptions; known apps, EXPOSE and /proc cover the rest
+adguardhome = [53, 67, 8082]
 
 [lan_hosts]                    # names for LAN IPs that show up in env vars and configs
 "10.0.0.24" = "ADS-B feeder Pi"
@@ -108,12 +128,9 @@ order = ["Edge & infrastructure", "Media", "Home & IoT", "Ops"]
 [links]                        # header links; anything mentioning coffee, ko-fi, sponsor gets the accent colour
 "buy me coffee" = "https://buymeacoffee.com/you"
 
-[[config_refs]]                # wiring that only exists in app config files
-container = "frigate"
-type = "frigate"               # regex | frigate | homeassistant | prometheus
-glob = "/opt/stacks/iot/frigate/config.yml"
+auto_refs = true               # read known apps' config files via their bind mounts
 
-[[config_refs]]
+[[config_refs]]                # only for files the known-apps table doesn't cover
 container = "grafana"
 type = "regex"
 glob = "/opt/stacks/monitoring/grafana/provisioning/datasources/*.yml"
@@ -161,7 +178,7 @@ still a list of your attack surface, so keep it on the LAN.
 
 ## What it doesn't do
 
-- Ports of host-network containers have to be listed by hand (`host_net_ports`).
+- Ports of host-network containers are a best guess unless Wharfmap can read `/proc`; `doctor` tells you which.
 - Traefik routers from the file provider aren't found, since they're not on any container.
 - Links that only live in an application's database (the *arr apps' download clients, Grafana
   datasources added in the UI) aren't found either. Provisioning files are.

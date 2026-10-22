@@ -3,6 +3,7 @@
   wharfmap generate [-c wharfmap.toml] [-o out]      write out/graph.json + out/index.html
   wharfmap serve    [-c ...] [--port 3008] [--every N]     generate, then serve the output directory
   wharfmap render -i graph.json [-o out]            index.html from a saved graph.json (no Docker needed)
+  wharfmap doctor   [-c ...]                         what was discovered automatically and what still needs config
   wharfmap init                                      print a starter config built from this host
 """
 from __future__ import annotations
@@ -92,6 +93,61 @@ def cmd_render(args) -> int:
     return 0
 
 
+def cmd_doctor(args) -> int:
+    """What discovery could and could not work out, and the few lines of config that would fix it."""
+    from . import ingress, refs
+    from .build import DEFAULT_ZONE_ORDER
+    from .discover import discover
+    cfg = _cfg(args)
+    g = discover(cfg)
+    ingress.collect(g)
+    refs.collect(g)
+    out = []
+    hn = [c for c in g.containers if c["hostnet"]]
+    if hn:
+        out.append("Host-network containers (Docker can't see their ports; source -> ports):")
+        for c in sorted(hn, key=lambda c: c["name"]):
+            ports = " ".join(str(p["host_port"]) for p in c["ports"]) or "-"
+            note = {"config": "", "proc": "  (read from the container's sockets)", "known": "  (known-app default; override in [host_net_ports] if wrong)",
+                    "expose": "  (image EXPOSE; may be generous)", "none": "  <- unknown: add to [host_net_ports]"}[c.get("ports_source", "none")]
+            out.append(f"  {c['name']:24} {c.get('ports_source','none'):7} {ports}{note}")
+    out.append("")
+    out.append("Config files read for wiring (auto = found via known app + bind mount, no config needed):")
+    for r in g.refs_used:
+        flag = "auto  " if r["auto"] else "toml  "
+        state = f"{r['files']} file(s), {r['edges']} edge(s)" if r["files"] else "NO FILES MATCHED"
+        out.append(f"  {r['container']:24} {r['type']:14} {flag} {state}  {r['glob']}")
+    if not g.refs_used:
+        out.append("  none")
+    if g.refs_skipped:
+        out.append("")
+        out.append("Known apps whose config Wharfmap could not reach (bind-mount it read-only at the same host path, or add a [[config_refs]]):")
+        for r in g.refs_skipped:
+            out.append(f"  {r['container']:24} {r['path']}  ({r['why']})")
+    unresolved = [(h["domains"][0] + ("" if h.get("enabled", True) else "  (disabled)"), t["upstream"]) for h in g.ingress for t in h["targets"] if not t["container"]]
+    if unresolved:
+        out.append("")
+        out.append("Proxy hosts whose upstream is not a container here (fine if it's another machine; otherwise a port is missing above):")
+        for d, u in unresolved:
+            out.append(f"  {d:40} -> {u}")
+    groups = sorted({c["group"] for c in g.containers if c["group"] and c["group"] not in cfg.zone_of_group})
+    if groups:
+        out.append("")
+        out.append('Label groups not mapped to a zone (they land in "Other"; add them under [zones.groups]):')
+        out += [f"  {x}" for x in groups]
+    lan = sorted(ip for ip in {e["target"][4:] for e in g.edges if e["target"].startswith("lan:")} if ip not in g.lan_labels)
+    if lan:
+        out.append("")
+        out.append("LAN hosts referenced but unnamed (optional: name them under [lan_hosts]):")
+        out += [f"  {ip}" for ip in lan]
+    hosts = sum(1 for h in g.ingress)
+    out.append("")
+    out.append(f"{len(g.containers)} containers, {len(g.networks)} networks, {hosts} proxy hosts, {len(g.edges)} edges. "
+               f"Ingress provider: {'none' if not hosts else 'npm-api' if any(h.get('cert') is not None or h.get('acl') for h in g.ingress) else cfg.ingress_provider}.")
+    print("\n".join(out))
+    return 0
+
+
 def cmd_init(args) -> int:
     cfg = config.Config()
     from .discover import discover
@@ -155,6 +211,7 @@ def main(argv=None) -> int:
     r = sub.add_parser("render", parents=[common], help="render index.html from an existing graph.json (no Docker needed)")
     r.add_argument("-i", "--input", required=True, help="graph.json to render")
     r.set_defaults(fn=cmd_render)
+    sub.add_parser("doctor", parents=[common], help="show what discovery figured out on its own and what still needs a line of config").set_defaults(fn=cmd_doctor)
     sub.add_parser("init", parents=[common], help="print a starter wharfmap.toml for this host").set_defaults(fn=cmd_init)
     args = ap.parse_args(argv)
     return args.fn(args)
