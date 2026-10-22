@@ -1,0 +1,2596 @@
+{
+ "generated": "2026-10-22T12:00-05:00",
+ "title": "Harbor Homelab Map",
+ "host": {
+  "name": "harbor",
+  "ip": "10.0.0.10"
+ },
+ "zones": {
+  "order": [
+   "Edge & infrastructure",
+   "Sites & hosting",
+   "Home & IoT",
+   "Media & downloads",
+   "AI & voice",
+   "Ops & monitoring"
+  ],
+  "groups": {
+   "Edge": "Edge & infrastructure",
+   "Core": "Edge & infrastructure",
+   "Sites": "Sites & hosting",
+   "Home": "Home & IoT",
+   "Media": "Media & downloads",
+   "Downloads": "Media & downloads",
+   "AI": "AI & voice",
+   "Monitoring": "Ops & monitoring"
+  }
+ },
+ "links": {
+  "buy me coffee": "https://buymeacoffee.com/you"
+ },
+ "containers": [
+  {
+   "id": "npm",
+   "name": "npm",
+   "stack": "edge",
+   "service": "npm",
+   "status": "running",
+   "health": null,
+   "image": "jc21/nginx-proxy-manager:latest",
+   "networks": [],
+   "ips": {},
+   "ports": [
+    {
+     "host_ip": "0.0.0.0",
+     "host_port": 80,
+     "cport": 80,
+     "proto": "tcp",
+     "owner": "npm"
+    },
+    {
+     "host_ip": "0.0.0.0",
+     "host_port": 443,
+     "cport": 443,
+     "proto": "tcp",
+     "owner": "npm"
+    },
+    {
+     "host_ip": "0.0.0.0",
+     "host_port": 81,
+     "cport": 81,
+     "proto": "tcp",
+     "owner": "npm"
+    }
+   ],
+   "hostnet": true,
+   "netns": null,
+   "depends_on": [],
+   "title": "Nginx Proxy Manager",
+   "group": "Edge",
+   "desc": "Reverse proxy + Let's Encrypt",
+   "href": null,
+   "created": "2026-03-14"
+  },
+  {
+   "id": "crowdsec",
+   "name": "crowdsec",
+   "stack": "edge",
+   "service": "crowdsec",
+   "status": "running",
+   "health": null,
+   "image": "crowdsecurity/crowdsec:latest",
+   "networks": [],
+   "ips": {},
+   "ports": [
+    {
+     "host_ip": "0.0.0.0",
+     "host_port": 8080,
+     "cport": 8080,
+     "proto": "tcp",
+     "owner": "crowdsec"
+    }
+   ],
+   "hostnet": true,
+   "netns": null,
+   "depends_on": [],
+   "title": "CrowdSec",
+   "group": "Edge",
+   "desc": "Behaviour-based IPS",
+   "href": null,
+   "created": "2026-03-14"
+  },
+  {
+   "id": "adguard",
+   "name": "adguard",
+   "stack": "core",
+   "service": "adguard",
+   "status": "running",
+   "health": null,
+   "image": "adguard/adguardhome:latest",
+   "networks": [],
+   "ips": {},
+   "ports": [
+    {
+     "host_ip": "0.0.0.0",
+     "host_port": 53,
+     "cport": 53,
+     "proto": "tcp",
+     "owner": "adguard"
+    },
+    {
+     "host_ip": "0.0.0.0",
+     "host_port": 3000,
+     "cport": 3000,
+     "proto": "tcp",
+     "owner": "adguard"
+    }
+   ],
+   "hostnet": true,
+   "netns": null,
+   "depends_on": [],
+   "title": "AdGuard Home",
+   "group": "Core",
+   "desc": "DNS + DHCP",
+   "href": null,
+   "created": "2026-03-14"
+  },
+  {
+   "id": "wireguard",
+   "name": "wireguard",
+   "stack": "core",
+   "service": "wireguard",
+   "status": "running",
+   "health": null,
+   "image": "lscr.io/linuxserver/wireguard:latest",
+   "networks": [],
+   "ips": {},
+   "ports": [
+    {
+     "host_ip": "0.0.0.0",
+     "host_port": 51820,
+     "cport": 51820,
+     "proto": "tcp",
+     "owner": "wireguard"
+    }
+   ],
+   "hostnet": true,
+   "netns": null,
+   "depends_on": [],
+   "title": "WireGuard",
+   "group": "Core",
+   "desc": "Road-warrior VPN",
+   "href": null,
+   "created": "2026-03-14"
+  },
+  {
+   "id": "blog",
+   "name": "blog",
+   "stack": "sites",
+   "service": "blog",
+   "status": "running",
+   "health": null,
+   "image": "nginx:alpine",
+   "networks": [
+    "seg_proxy"
+   ],
+   "ips": {
+    "seg_proxy": "10.90.0.2"
+   },
+   "ports": [
+    {
+     "host_ip": "127.0.0.1",
+     "host_port": 8180,
+     "cport": 80,
+     "proto": "tcp",
+     "owner": "blog"
+    }
+   ],
+   "hostnet": false,
+   "netns": null,
+   "depends_on": [],
+   "title": "Blog",
+   "group": "Sites",
+   "desc": "Hugo site",
+   "href": null,
+   "created": "2026-03-14"
+  },
+  {
+   "id": "nextcloud",
+   "name": "nextcloud",
+   "stack": "sites",
+   "service": "nextcloud",
+   "status": "running",
+   "health": null,
+   "image": "nextcloud:29",
+   "networks": [
+    "seg_proxy"
+   ],
+   "ips": {
+    "seg_proxy": "10.90.0.3"
+   },
+   "ports": [
+    {
+     "host_ip": "127.0.0.1",
+     "host_port": 11000,
+     "cport": 80,
+     "proto": "tcp",
+     "owner": "nextcloud"
+    }
+   ],
+   "hostnet": false,
+   "netns": null,
+   "depends_on": [
+    "nextcloud-db",
+    "nextcloud-redis"
+   ],
+   "title": "Nextcloud",
+   "group": "Sites",
+   "desc": "",
+   "href": null,
+   "created": "2026-03-14"
+  },
+  {
+   "id": "nextcloud-db",
+   "name": "nextcloud-db",
+   "stack": "sites",
+   "service": "nextcloud-db",
+   "status": "running",
+   "health": null,
+   "image": "postgres:16",
+   "networks": [
+    "seg_proxy"
+   ],
+   "ips": {
+    "seg_proxy": "10.90.0.4"
+   },
+   "ports": [],
+   "hostnet": false,
+   "netns": null,
+   "depends_on": [],
+   "title": "Nextcloud DB",
+   "group": "Sites",
+   "desc": "",
+   "href": null,
+   "created": "2026-03-14"
+  },
+  {
+   "id": "nextcloud-redis",
+   "name": "nextcloud-redis",
+   "stack": "sites",
+   "service": "nextcloud-redis",
+   "status": "running",
+   "health": null,
+   "image": "redis:7",
+   "networks": [
+    "seg_proxy"
+   ],
+   "ips": {
+    "seg_proxy": "10.90.0.5"
+   },
+   "ports": [],
+   "hostnet": false,
+   "netns": null,
+   "depends_on": [],
+   "title": "Nextcloud Redis",
+   "group": "Sites",
+   "desc": "",
+   "href": null,
+   "created": "2026-03-14"
+  },
+  {
+   "id": "vaultwarden",
+   "name": "vaultwarden",
+   "stack": "sites",
+   "service": "vaultwarden",
+   "status": "running",
+   "health": null,
+   "image": "vaultwarden/server:latest",
+   "networks": [
+    "seg_proxy"
+   ],
+   "ips": {
+    "seg_proxy": "10.90.0.6"
+   },
+   "ports": [
+    {
+     "host_ip": "127.0.0.1",
+     "host_port": 8222,
+     "cport": 80,
+     "proto": "tcp",
+     "owner": "vaultwarden"
+    }
+   ],
+   "hostnet": false,
+   "netns": null,
+   "depends_on": [],
+   "title": "Vaultwarden",
+   "group": "Sites",
+   "desc": "",
+   "href": null,
+   "created": "2026-03-14"
+  },
+  {
+   "id": "homeassistant",
+   "name": "homeassistant",
+   "stack": "home",
+   "service": "homeassistant",
+   "status": "running",
+   "health": null,
+   "image": "ghcr.io/home-assistant/home-assistant:stable",
+   "networks": [],
+   "ips": {},
+   "ports": [
+    {
+     "host_ip": "0.0.0.0",
+     "host_port": 8123,
+     "cport": 8123,
+     "proto": "tcp",
+     "owner": "homeassistant"
+    }
+   ],
+   "hostnet": true,
+   "netns": null,
+   "depends_on": [],
+   "title": "Home Assistant",
+   "group": "Home",
+   "desc": "",
+   "href": "http://ha.lan",
+   "created": "2026-03-14"
+  },
+  {
+   "id": "mosquitto",
+   "name": "mosquitto",
+   "stack": "home",
+   "service": "mosquitto",
+   "status": "running",
+   "health": null,
+   "image": "eclipse-mosquitto:2",
+   "networks": [
+    "seg_home"
+   ],
+   "ips": {
+    "seg_home": "10.92.0.2"
+   },
+   "ports": [
+    {
+     "host_ip": "0.0.0.0",
+     "host_port": 1883,
+     "cport": 1883,
+     "proto": "tcp",
+     "owner": "mosquitto"
+    }
+   ],
+   "hostnet": false,
+   "netns": null,
+   "depends_on": [],
+   "title": "Mosquitto",
+   "group": "Home",
+   "desc": "",
+   "href": null,
+   "created": "2026-03-14"
+  },
+  {
+   "id": "zigbee2mqtt",
+   "name": "zigbee2mqtt",
+   "stack": "home",
+   "service": "zigbee2mqtt",
+   "status": "running",
+   "health": null,
+   "image": "koenkk/zigbee2mqtt:latest",
+   "networks": [
+    "seg_home"
+   ],
+   "ips": {
+    "seg_home": "10.92.0.3"
+   },
+   "ports": [
+    {
+     "host_ip": "127.0.0.1",
+     "host_port": 8081,
+     "cport": 8080,
+     "proto": "tcp",
+     "owner": "zigbee2mqtt"
+    }
+   ],
+   "hostnet": false,
+   "netns": null,
+   "depends_on": [
+    "mosquitto"
+   ],
+   "title": "Zigbee2MQTT",
+   "group": "Home",
+   "desc": "",
+   "href": null,
+   "created": "2026-03-14"
+  },
+  {
+   "id": "frigate",
+   "name": "frigate",
+   "stack": "home",
+   "service": "frigate",
+   "status": "running",
+   "health": null,
+   "image": "ghcr.io/blakeblackshear/frigate:stable",
+   "networks": [
+    "seg_home"
+   ],
+   "ips": {
+    "seg_home": "10.92.0.4"
+   },
+   "ports": [
+    {
+     "host_ip": "127.0.0.1",
+     "host_port": 5000,
+     "cport": 5000,
+     "proto": "tcp",
+     "owner": "frigate"
+    },
+    {
+     "host_ip": "0.0.0.0",
+     "host_port": 8554,
+     "cport": 8554,
+     "proto": "tcp",
+     "owner": "frigate"
+    }
+   ],
+   "hostnet": false,
+   "netns": null,
+   "depends_on": [
+    "mosquitto"
+   ],
+   "title": "Frigate",
+   "group": "Home",
+   "desc": "NVR with object detection",
+   "href": null,
+   "created": "2026-03-14"
+  },
+  {
+   "id": "esphome",
+   "name": "esphome",
+   "stack": "home",
+   "service": "esphome",
+   "status": "running",
+   "health": null,
+   "image": "ghcr.io/esphome/esphome:latest",
+   "networks": [],
+   "ips": {},
+   "ports": [
+    {
+     "host_ip": "0.0.0.0",
+     "host_port": 6052,
+     "cport": 6052,
+     "proto": "tcp",
+     "owner": "esphome"
+    }
+   ],
+   "hostnet": true,
+   "netns": null,
+   "depends_on": [],
+   "title": "ESPHome",
+   "group": "Home",
+   "desc": "",
+   "href": null,
+   "created": "2026-03-14"
+  },
+  {
+   "id": "node-red",
+   "name": "node-red",
+   "stack": "home",
+   "service": "node-red",
+   "status": "running",
+   "health": null,
+   "image": "nodered/node-red:latest",
+   "networks": [
+    "seg_home"
+   ],
+   "ips": {
+    "seg_home": "10.92.0.5"
+   },
+   "ports": [
+    {
+     "host_ip": "127.0.0.1",
+     "host_port": 1880,
+     "cport": 1880,
+     "proto": "tcp",
+     "owner": "node-red"
+    }
+   ],
+   "hostnet": false,
+   "netns": null,
+   "depends_on": [],
+   "title": "Node-RED",
+   "group": "Home",
+   "desc": "",
+   "href": null,
+   "created": "2026-03-14"
+  },
+  {
+   "id": "plex",
+   "name": "plex",
+   "stack": "media",
+   "service": "plex",
+   "status": "running",
+   "health": null,
+   "image": "plexinc/pms-docker:latest",
+   "networks": [],
+   "ips": {},
+   "ports": [
+    {
+     "host_ip": "0.0.0.0",
+     "host_port": 32400,
+     "cport": 32400,
+     "proto": "tcp",
+     "owner": "plex"
+    }
+   ],
+   "hostnet": true,
+   "netns": null,
+   "depends_on": [],
+   "title": "Plex",
+   "group": "Media",
+   "desc": "",
+   "href": null,
+   "created": "2026-03-14"
+  },
+  {
+   "id": "immich",
+   "name": "immich",
+   "stack": "media",
+   "service": "immich",
+   "status": "running",
+   "health": null,
+   "image": "ghcr.io/immich-app/immich-server:release",
+   "networks": [
+    "seg_media"
+   ],
+   "ips": {
+    "seg_media": "10.91.0.2"
+   },
+   "ports": [
+    {
+     "host_ip": "127.0.0.1",
+     "host_port": 2283,
+     "cport": 2283,
+     "proto": "tcp",
+     "owner": "immich"
+    }
+   ],
+   "hostnet": false,
+   "netns": null,
+   "depends_on": [
+    "immich-db",
+    "immich-redis",
+    "immich-ml"
+   ],
+   "title": "Immich",
+   "group": "Media",
+   "desc": "",
+   "href": null,
+   "created": "2026-03-14"
+  },
+  {
+   "id": "immich-ml",
+   "name": "immich-ml",
+   "stack": "media",
+   "service": "immich-ml",
+   "status": "running",
+   "health": null,
+   "image": "ghcr.io/immich-app/immich-machine-learning:release",
+   "networks": [
+    "seg_media"
+   ],
+   "ips": {
+    "seg_media": "10.91.0.3"
+   },
+   "ports": [],
+   "hostnet": false,
+   "netns": null,
+   "depends_on": [],
+   "title": "Immich ML",
+   "group": "Media",
+   "desc": "",
+   "href": null,
+   "created": "2026-03-14"
+  },
+  {
+   "id": "immich-db",
+   "name": "immich-db",
+   "stack": "media",
+   "service": "immich-db",
+   "status": "running",
+   "health": null,
+   "image": "tensorchord/pgvecto-rs:pg16",
+   "networks": [
+    "seg_media"
+   ],
+   "ips": {
+    "seg_media": "10.91.0.4"
+   },
+   "ports": [],
+   "hostnet": false,
+   "netns": null,
+   "depends_on": [],
+   "title": "Immich DB",
+   "group": "Media",
+   "desc": "",
+   "href": null,
+   "created": "2026-03-14"
+  },
+  {
+   "id": "immich-redis",
+   "name": "immich-redis",
+   "stack": "media",
+   "service": "immich-redis",
+   "status": "running",
+   "health": null,
+   "image": "redis:7",
+   "networks": [
+    "seg_media"
+   ],
+   "ips": {
+    "seg_media": "10.91.0.5"
+   },
+   "ports": [],
+   "hostnet": false,
+   "netns": null,
+   "depends_on": [],
+   "title": "Immich Redis",
+   "group": "Media",
+   "desc": "",
+   "href": null,
+   "created": "2026-03-14"
+  },
+  {
+   "id": "audiobookshelf",
+   "name": "audiobookshelf",
+   "stack": "media",
+   "service": "audiobookshelf",
+   "status": "running",
+   "health": null,
+   "image": "ghcr.io/advplyr/audiobookshelf:latest",
+   "networks": [
+    "seg_media",
+    "downloads_vpn"
+   ],
+   "ips": {
+    "seg_media": "10.91.0.6",
+    "downloads_vpn": "10.95.0.2"
+   },
+   "ports": [
+    {
+     "host_ip": "127.0.0.1",
+     "host_port": 13378,
+     "cport": 80,
+     "proto": "tcp",
+     "owner": "audiobookshelf"
+    }
+   ],
+   "hostnet": false,
+   "netns": null,
+   "depends_on": [],
+   "title": "AudiobookShelf",
+   "group": "Media",
+   "desc": "",
+   "href": null,
+   "created": "2026-03-14"
+  },
+  {
+   "id": "calibre-web",
+   "name": "calibre-web",
+   "stack": "media",
+   "service": "calibre-web",
+   "status": "running",
+   "health": null,
+   "image": "lscr.io/linuxserver/calibre-web:latest",
+   "networks": [
+    "seg_media",
+    "downloads_vpn"
+   ],
+   "ips": {
+    "seg_media": "10.91.0.7",
+    "downloads_vpn": "10.95.0.3"
+   },
+   "ports": [
+    {
+     "host_ip": "127.0.0.1",
+     "host_port": 8083,
+     "cport": 8083,
+     "proto": "tcp",
+     "owner": "calibre-web"
+    }
+   ],
+   "hostnet": false,
+   "netns": null,
+   "depends_on": [],
+   "title": "Calibre-Web",
+   "group": "Media",
+   "desc": "",
+   "href": null,
+   "created": "2026-03-14"
+  },
+  {
+   "id": "vpn-client",
+   "name": "vpn-client",
+   "stack": "downloads",
+   "service": "vpn-client",
+   "status": "running",
+   "health": "healthy",
+   "image": "ghcr.io/example/wireguard-client:latest",
+   "networks": [
+    "downloads_vpn"
+   ],
+   "ips": {
+    "downloads_vpn": "10.95.0.4"
+   },
+   "ports": [
+    {
+     "host_ip": "0.0.0.0",
+     "host_port": 9091,
+     "cport": 9091,
+     "proto": "tcp",
+     "owner": "vpn-client"
+    },
+    {
+     "host_ip": "127.0.0.1",
+     "host_port": 8989,
+     "cport": 8989,
+     "proto": "tcp",
+     "owner": "vpn-client"
+    },
+    {
+     "host_ip": "127.0.0.1",
+     "host_port": 7878,
+     "cport": 7878,
+     "proto": "tcp",
+     "owner": "vpn-client"
+    },
+    {
+     "host_ip": "127.0.0.1",
+     "host_port": 9696,
+     "cport": 9696,
+     "proto": "tcp",
+     "owner": "vpn-client"
+    }
+   ],
+   "hostnet": false,
+   "netns": null,
+   "depends_on": [],
+   "title": "VPN Gateway",
+   "group": "Downloads",
+   "desc": "All downloaders share this netns",
+   "href": null,
+   "created": "2026-03-14"
+  },
+  {
+   "id": "transmission",
+   "name": "transmission",
+   "stack": "downloads",
+   "service": "transmission",
+   "status": "running",
+   "health": null,
+   "image": "lscr.io/linuxserver/transmission:latest",
+   "networks": [],
+   "ips": {},
+   "ports": [],
+   "hostnet": false,
+   "netns": "vpn-client",
+   "depends_on": [],
+   "title": "Transmission",
+   "group": "Downloads",
+   "desc": "",
+   "href": null,
+   "created": "2026-03-14"
+  },
+  {
+   "id": "sonarr",
+   "name": "sonarr",
+   "stack": "downloads",
+   "service": "sonarr",
+   "status": "running",
+   "health": null,
+   "image": "lscr.io/linuxserver/sonarr:latest",
+   "networks": [],
+   "ips": {},
+   "ports": [],
+   "hostnet": false,
+   "netns": "vpn-client",
+   "depends_on": [],
+   "title": "Sonarr",
+   "group": "Downloads",
+   "desc": "",
+   "href": null,
+   "created": "2026-03-14"
+  },
+  {
+   "id": "radarr",
+   "name": "radarr",
+   "stack": "downloads",
+   "service": "radarr",
+   "status": "running",
+   "health": null,
+   "image": "lscr.io/linuxserver/radarr:latest",
+   "networks": [],
+   "ips": {},
+   "ports": [],
+   "hostnet": false,
+   "netns": "vpn-client",
+   "depends_on": [],
+   "title": "Radarr",
+   "group": "Downloads",
+   "desc": "",
+   "href": null,
+   "created": "2026-03-14"
+  },
+  {
+   "id": "prowlarr",
+   "name": "prowlarr",
+   "stack": "downloads",
+   "service": "prowlarr",
+   "status": "running",
+   "health": null,
+   "image": "lscr.io/linuxserver/prowlarr:latest",
+   "networks": [],
+   "ips": {},
+   "ports": [],
+   "hostnet": false,
+   "netns": "vpn-client",
+   "depends_on": [],
+   "title": "Prowlarr",
+   "group": "Downloads",
+   "desc": "",
+   "href": null,
+   "created": "2026-03-14"
+  },
+  {
+   "id": "seerr",
+   "name": "seerr",
+   "stack": "downloads",
+   "service": "seerr",
+   "status": "running",
+   "health": null,
+   "image": "ghcr.io/seerr-team/seerr:latest",
+   "networks": [
+    "downloads_vpn"
+   ],
+   "ips": {
+    "downloads_vpn": "10.95.0.5"
+   },
+   "ports": [
+    {
+     "host_ip": "127.0.0.1",
+     "host_port": 5055,
+     "cport": 5055,
+     "proto": "tcp",
+     "owner": "seerr"
+    }
+   ],
+   "hostnet": false,
+   "netns": null,
+   "depends_on": [],
+   "title": "Seerr",
+   "group": "Downloads",
+   "desc": "Requests",
+   "href": null,
+   "created": "2026-03-14"
+  },
+  {
+   "id": "ollama",
+   "name": "ollama",
+   "stack": "ai",
+   "service": "ollama",
+   "status": "running",
+   "health": null,
+   "image": "ollama/ollama:latest",
+   "networks": [
+    "ai_net"
+   ],
+   "ips": {
+    "ai_net": "10.96.0.2"
+   },
+   "ports": [
+    {
+     "host_ip": "127.0.0.1",
+     "host_port": 11434,
+     "cport": 11434,
+     "proto": "tcp",
+     "owner": "ollama"
+    }
+   ],
+   "hostnet": false,
+   "netns": null,
+   "depends_on": [],
+   "title": "Ollama",
+   "group": "AI",
+   "desc": "",
+   "href": null,
+   "created": "2026-03-14"
+  },
+  {
+   "id": "open-webui",
+   "name": "open-webui",
+   "stack": "ai",
+   "service": "open-webui",
+   "status": "running",
+   "health": null,
+   "image": "ghcr.io/open-webui/open-webui:main",
+   "networks": [
+    "ai_net"
+   ],
+   "ips": {
+    "ai_net": "10.96.0.3"
+   },
+   "ports": [
+    {
+     "host_ip": "127.0.0.1",
+     "host_port": 3005,
+     "cport": 8080,
+     "proto": "tcp",
+     "owner": "open-webui"
+    }
+   ],
+   "hostnet": false,
+   "netns": null,
+   "depends_on": [
+    "ollama"
+   ],
+   "title": "Open WebUI",
+   "group": "AI",
+   "desc": "",
+   "href": null,
+   "created": "2026-03-14"
+  },
+  {
+   "id": "whisper",
+   "name": "whisper",
+   "stack": "ai",
+   "service": "whisper",
+   "status": "running",
+   "health": null,
+   "image": "rhasspy/wyoming-whisper:latest",
+   "networks": [
+    "ai_net"
+   ],
+   "ips": {
+    "ai_net": "10.96.0.4"
+   },
+   "ports": [
+    {
+     "host_ip": "0.0.0.0",
+     "host_port": 10300,
+     "cport": 10300,
+     "proto": "tcp",
+     "owner": "whisper"
+    }
+   ],
+   "hostnet": false,
+   "netns": null,
+   "depends_on": [],
+   "title": "Whisper STT",
+   "group": "AI",
+   "desc": "",
+   "href": null,
+   "created": "2026-03-14"
+  },
+  {
+   "id": "piper",
+   "name": "piper",
+   "stack": "ai",
+   "service": "piper",
+   "status": "running",
+   "health": null,
+   "image": "rhasspy/wyoming-piper:latest",
+   "networks": [
+    "ai_net"
+   ],
+   "ips": {
+    "ai_net": "10.96.0.5"
+   },
+   "ports": [
+    {
+     "host_ip": "0.0.0.0",
+     "host_port": 10200,
+     "cport": 10200,
+     "proto": "tcp",
+     "owner": "piper"
+    }
+   ],
+   "hostnet": false,
+   "netns": null,
+   "depends_on": [],
+   "title": "Piper TTS",
+   "group": "AI",
+   "desc": "",
+   "href": null,
+   "created": "2026-03-14"
+  },
+  {
+   "id": "homepage",
+   "name": "homepage",
+   "stack": "monitoring",
+   "service": "homepage",
+   "status": "running",
+   "health": null,
+   "image": "ghcr.io/gethomepage/homepage:latest",
+   "networks": [
+    "seg_monitoring",
+    "dockersock"
+   ],
+   "ips": {
+    "seg_monitoring": "10.93.0.2",
+    "dockersock": "10.94.0.2"
+   },
+   "ports": [
+    {
+     "host_ip": "0.0.0.0",
+     "host_port": 3002,
+     "cport": 3000,
+     "proto": "tcp",
+     "owner": "homepage"
+    }
+   ],
+   "hostnet": false,
+   "netns": null,
+   "depends_on": [],
+   "title": "Homepage",
+   "group": "Monitoring",
+   "desc": "",
+   "href": null,
+   "created": "2026-03-14"
+  },
+  {
+   "id": "dockerproxy",
+   "name": "dockerproxy",
+   "stack": "monitoring",
+   "service": "dockerproxy",
+   "status": "running",
+   "health": null,
+   "image": "ghcr.io/tecnativa/docker-socket-proxy:latest",
+   "networks": [
+    "dockersock"
+   ],
+   "ips": {
+    "dockersock": "10.94.0.3"
+   },
+   "ports": [],
+   "hostnet": false,
+   "netns": null,
+   "depends_on": [],
+   "title": "Docker Socket Proxy",
+   "group": "Monitoring",
+   "desc": "",
+   "href": null,
+   "created": "2026-03-14"
+  },
+  {
+   "id": "netdata",
+   "name": "netdata",
+   "stack": "monitoring",
+   "service": "netdata",
+   "status": "running",
+   "health": null,
+   "image": "netdata/netdata:stable",
+   "networks": [],
+   "ips": {},
+   "ports": [
+    {
+     "host_ip": "0.0.0.0",
+     "host_port": 19999,
+     "cport": 19999,
+     "proto": "tcp",
+     "owner": "netdata"
+    }
+   ],
+   "hostnet": true,
+   "netns": null,
+   "depends_on": [],
+   "title": "Netdata",
+   "group": "Monitoring",
+   "desc": "",
+   "href": null,
+   "created": "2026-03-14"
+  },
+  {
+   "id": "loki",
+   "name": "loki",
+   "stack": "monitoring",
+   "service": "loki",
+   "status": "running",
+   "health": null,
+   "image": "grafana/loki:3.0.0",
+   "networks": [
+    "seg_monitoring"
+   ],
+   "ips": {
+    "seg_monitoring": "10.93.0.3"
+   },
+   "ports": [],
+   "hostnet": false,
+   "netns": null,
+   "depends_on": [],
+   "title": "Loki",
+   "group": "Monitoring",
+   "desc": "",
+   "href": null,
+   "created": "2026-03-14"
+  },
+  {
+   "id": "alloy",
+   "name": "alloy",
+   "stack": "monitoring",
+   "service": "alloy",
+   "status": "running",
+   "health": null,
+   "image": "grafana/alloy:latest",
+   "networks": [
+    "seg_monitoring",
+    "dockersock"
+   ],
+   "ips": {
+    "seg_monitoring": "10.93.0.4",
+    "dockersock": "10.94.0.4"
+   },
+   "ports": [],
+   "hostnet": false,
+   "netns": null,
+   "depends_on": [
+    "loki"
+   ],
+   "title": "Alloy",
+   "group": "Monitoring",
+   "desc": "",
+   "href": null,
+   "created": "2026-03-14"
+  },
+  {
+   "id": "grafana",
+   "name": "grafana",
+   "stack": "monitoring",
+   "service": "grafana",
+   "status": "running",
+   "health": null,
+   "image": "grafana/grafana:latest",
+   "networks": [
+    "seg_monitoring"
+   ],
+   "ips": {
+    "seg_monitoring": "10.93.0.5"
+   },
+   "ports": [
+    {
+     "host_ip": "127.0.0.1",
+     "host_port": 3001,
+     "cport": 3000,
+     "proto": "tcp",
+     "owner": "grafana"
+    }
+   ],
+   "hostnet": false,
+   "netns": null,
+   "depends_on": [
+    "loki"
+   ],
+   "title": "Grafana",
+   "group": "Monitoring",
+   "desc": "",
+   "href": null,
+   "created": "2026-03-14"
+  },
+  {
+   "id": "wud",
+   "name": "wud",
+   "stack": "monitoring",
+   "service": "wud",
+   "status": "running",
+   "health": null,
+   "image": "getwud/wud:latest",
+   "networks": [
+    "dockersock"
+   ],
+   "ips": {
+    "dockersock": "10.94.0.5"
+   },
+   "ports": [
+    {
+     "host_ip": "127.0.0.1",
+     "host_port": 3003,
+     "cport": 3000,
+     "proto": "tcp",
+     "owner": "wud"
+    }
+   ],
+   "hostnet": false,
+   "netns": null,
+   "depends_on": [],
+   "title": "What's Up Docker",
+   "group": "Monitoring",
+   "desc": "",
+   "href": null,
+   "created": "2026-03-14"
+  },
+  {
+   "id": "wharfmap",
+   "name": "wharfmap",
+   "stack": "monitoring",
+   "service": "wharfmap",
+   "status": "running",
+   "health": null,
+   "image": "ghcr.io/hook-365/wharfmap:latest",
+   "networks": [
+    "seg_monitoring",
+    "dockersock"
+   ],
+   "ips": {
+    "seg_monitoring": "10.93.0.6",
+    "dockersock": "10.94.0.6"
+   },
+   "ports": [
+    {
+     "host_ip": "127.0.0.1",
+     "host_port": 3008,
+     "cport": 3008,
+     "proto": "tcp",
+     "owner": "wharfmap"
+    }
+   ],
+   "hostnet": false,
+   "netns": null,
+   "depends_on": [],
+   "title": "Wharfmap",
+   "group": "Monitoring",
+   "desc": "This map",
+   "href": null,
+   "created": "2026-03-14"
+  },
+  {
+   "id": "old-dashboard",
+   "name": "old-dashboard",
+   "stack": "monitoring",
+   "service": "old-dashboard",
+   "status": "exited",
+   "health": null,
+   "image": "ghcr.io/example/dashboard:1.2",
+   "networks": [
+    "seg_monitoring"
+   ],
+   "ips": {
+    "seg_monitoring": "10.93.0.7"
+   },
+   "ports": [],
+   "hostnet": false,
+   "netns": null,
+   "depends_on": [],
+   "title": "Old Dashboard",
+   "group": "Monitoring",
+   "desc": "",
+   "href": null,
+   "created": "2026-03-14"
+  }
+ ],
+ "networks": [
+  {
+   "name": "seg_proxy",
+   "driver": "bridge",
+   "subnet": "10.90.0.0/24",
+   "gateway": "10.90.0.1",
+   "ip_range": "10.90.0.128/25",
+   "members": [
+    "blog",
+    "nextcloud",
+    "nextcloud-db",
+    "nextcloud-redis",
+    "vaultwarden"
+   ]
+  },
+  {
+   "name": "seg_media",
+   "driver": "bridge",
+   "subnet": "10.91.0.0/24",
+   "gateway": "10.91.0.1",
+   "ip_range": "10.91.0.128/25",
+   "members": [
+    "audiobookshelf",
+    "calibre-web",
+    "immich",
+    "immich-db",
+    "immich-ml",
+    "immich-redis"
+   ]
+  },
+  {
+   "name": "seg_home",
+   "driver": "bridge",
+   "subnet": "10.92.0.0/24",
+   "gateway": "10.92.0.1",
+   "ip_range": "10.92.0.128/25",
+   "members": [
+    "frigate",
+    "mosquitto",
+    "node-red",
+    "zigbee2mqtt"
+   ]
+  },
+  {
+   "name": "seg_monitoring",
+   "driver": "bridge",
+   "subnet": "10.93.0.0/24",
+   "gateway": "10.93.0.1",
+   "ip_range": "10.93.0.128/25",
+   "members": [
+    "alloy",
+    "grafana",
+    "homepage",
+    "loki",
+    "old-dashboard",
+    "wharfmap"
+   ]
+  },
+  {
+   "name": "dockersock",
+   "driver": "bridge",
+   "subnet": "10.94.0.0/24",
+   "gateway": "10.94.0.1",
+   "ip_range": "10.94.0.128/25",
+   "members": [
+    "alloy",
+    "dockerproxy",
+    "homepage",
+    "wharfmap",
+    "wud"
+   ]
+  },
+  {
+   "name": "downloads_vpn",
+   "driver": "bridge",
+   "subnet": "10.95.0.0/24",
+   "gateway": "10.95.0.1",
+   "ip_range": "10.95.0.128/25",
+   "members": [
+    "audiobookshelf",
+    "calibre-web",
+    "seerr",
+    "vpn-client"
+   ]
+  },
+  {
+   "name": "ai_net",
+   "driver": "bridge",
+   "subnet": "10.96.0.0/24",
+   "gateway": "10.96.0.1",
+   "ip_range": "10.96.0.128/25",
+   "members": [
+    "ollama",
+    "open-webui",
+    "piper",
+    "whisper"
+   ]
+  },
+  {
+   "name": "host",
+   "driver": "host",
+   "subnet": null,
+   "gateway": null,
+   "ip_range": null,
+   "members": [
+    "adguard",
+    "crowdsec",
+    "esphome",
+    "homeassistant",
+    "netdata",
+    "npm",
+    "plex",
+    "wireguard"
+   ]
+  }
+ ],
+ "ingress": [
+  {
+   "file": "proxy-host:1",
+   "id": 1,
+   "kind": "proxy",
+   "domains": [
+    "blog.example.com"
+   ],
+   "upstreams": [
+    "127.0.0.1:8180"
+   ],
+   "targets": [
+    {
+     "upstream": "127.0.0.1:8180",
+     "container": "blog"
+    }
+   ],
+   "internal": false,
+   "auth": false,
+   "public": true,
+   "enabled": true,
+   "acl": null,
+   "cert": {
+    "name": "blog.example.com",
+    "provider": "letsencrypt",
+    "expires_on": "2026-12-20",
+    "days": 61,
+    "lifetime": 90,
+    "warn": false
+   },
+   "ssl_forced": true,
+   "error": ""
+  },
+  {
+   "file": "proxy-host:2",
+   "id": 2,
+   "kind": "proxy",
+   "domains": [
+    "cloud.example.com"
+   ],
+   "upstreams": [
+    "127.0.0.1:11000"
+   ],
+   "targets": [
+    {
+     "upstream": "127.0.0.1:11000",
+     "container": "nextcloud"
+    }
+   ],
+   "internal": false,
+   "auth": false,
+   "public": true,
+   "enabled": true,
+   "acl": null,
+   "cert": {
+    "name": "cloud.example.com",
+    "provider": "letsencrypt",
+    "expires_on": "2026-12-20",
+    "days": 61,
+    "lifetime": 90,
+    "warn": false
+   },
+   "ssl_forced": true,
+   "error": ""
+  },
+  {
+   "file": "proxy-host:3",
+   "id": 3,
+   "kind": "proxy",
+   "domains": [
+    "vault.example.com"
+   ],
+   "upstreams": [
+    "127.0.0.1:8222"
+   ],
+   "targets": [
+    {
+     "upstream": "127.0.0.1:8222",
+     "container": "vaultwarden"
+    }
+   ],
+   "internal": false,
+   "auth": false,
+   "public": true,
+   "enabled": true,
+   "acl": null,
+   "cert": {
+    "name": "vault.example.com",
+    "provider": "letsencrypt",
+    "expires_on": "2026-12-20",
+    "days": 9,
+    "lifetime": 90,
+    "warn": true
+   },
+   "ssl_forced": true,
+   "error": ""
+  },
+  {
+   "file": "proxy-host:4",
+   "id": 4,
+   "kind": "proxy",
+   "domains": [
+    "photos.example.com"
+   ],
+   "upstreams": [
+    "127.0.0.1:2283"
+   ],
+   "targets": [
+    {
+     "upstream": "127.0.0.1:2283",
+     "container": "immich"
+    }
+   ],
+   "internal": false,
+   "auth": false,
+   "public": true,
+   "enabled": true,
+   "acl": null,
+   "cert": {
+    "name": "photos.example.com",
+    "provider": "letsencrypt",
+    "expires_on": "2026-12-20",
+    "days": 61,
+    "lifetime": 90,
+    "warn": false
+   },
+   "ssl_forced": true,
+   "error": ""
+  },
+  {
+   "file": "proxy-host:5",
+   "id": 5,
+   "kind": "proxy",
+   "domains": [
+    "books.example.com"
+   ],
+   "upstreams": [
+    "127.0.0.1:13378"
+   ],
+   "targets": [
+    {
+     "upstream": "127.0.0.1:13378",
+     "container": "audiobookshelf"
+    }
+   ],
+   "internal": false,
+   "auth": false,
+   "public": true,
+   "enabled": true,
+   "acl": null,
+   "cert": {
+    "name": "books.example.com",
+    "provider": "letsencrypt",
+    "expires_on": "2026-12-20",
+    "days": 61,
+    "lifetime": 90,
+    "warn": false
+   },
+   "ssl_forced": true,
+   "error": ""
+  },
+  {
+   "file": "proxy-host:6",
+   "id": 6,
+   "kind": "proxy",
+   "domains": [
+    "read.example.com"
+   ],
+   "upstreams": [
+    "127.0.0.1:8083"
+   ],
+   "targets": [
+    {
+     "upstream": "127.0.0.1:8083",
+     "container": "calibre-web"
+    }
+   ],
+   "internal": false,
+   "auth": true,
+   "public": true,
+   "enabled": true,
+   "acl": {
+    "name": "family basic auth",
+    "clients": [
+     "10.0.0.0/24"
+    ]
+   },
+   "cert": {
+    "name": "read.example.com",
+    "provider": "letsencrypt",
+    "expires_on": "2026-12-20",
+    "days": 61,
+    "lifetime": 90,
+    "warn": false
+   },
+   "ssl_forced": true,
+   "error": ""
+  },
+  {
+   "file": "proxy-host:7",
+   "id": 7,
+   "kind": "proxy",
+   "domains": [
+    "requests.example.com"
+   ],
+   "upstreams": [
+    "127.0.0.1:5055"
+   ],
+   "targets": [
+    {
+     "upstream": "127.0.0.1:5055",
+     "container": "seerr"
+    }
+   ],
+   "internal": false,
+   "auth": false,
+   "public": true,
+   "enabled": true,
+   "acl": null,
+   "cert": {
+    "name": "requests.example.com",
+    "provider": "letsencrypt",
+    "expires_on": "2026-12-20",
+    "days": 61,
+    "lifetime": 90,
+    "warn": false
+   },
+   "ssl_forced": true,
+   "error": ""
+  },
+  {
+   "file": "proxy-host:8",
+   "id": 8,
+   "kind": "proxy",
+   "domains": [
+    "home.example.com"
+   ],
+   "upstreams": [
+    "127.0.0.1:8123"
+   ],
+   "targets": [
+    {
+     "upstream": "127.0.0.1:8123",
+     "container": "homeassistant"
+    }
+   ],
+   "internal": false,
+   "auth": false,
+   "public": true,
+   "enabled": true,
+   "acl": null,
+   "cert": {
+    "name": "home.example.com",
+    "provider": "letsencrypt",
+    "expires_on": "2026-12-20",
+    "days": 61,
+    "lifetime": 90,
+    "warn": false
+   },
+   "ssl_forced": true,
+   "error": ""
+  },
+  {
+   "file": "proxy-host:9",
+   "id": 9,
+   "kind": "proxy",
+   "domains": [
+    "chat.example.com"
+   ],
+   "upstreams": [
+    "127.0.0.1:3005"
+   ],
+   "targets": [
+    {
+     "upstream": "127.0.0.1:3005",
+     "container": "open-webui"
+    }
+   ],
+   "internal": false,
+   "auth": false,
+   "public": true,
+   "enabled": false,
+   "acl": null,
+   "cert": {
+    "name": "chat.example.com",
+    "provider": "letsencrypt",
+    "expires_on": "2026-12-20",
+    "days": 61,
+    "lifetime": 90,
+    "warn": false
+   },
+   "ssl_forced": true,
+   "error": ""
+  },
+  {
+   "file": "proxy-host:10",
+   "id": 10,
+   "kind": "proxy",
+   "domains": [
+    "ha.lan"
+   ],
+   "upstreams": [
+    "127.0.0.1:8123"
+   ],
+   "targets": [
+    {
+     "upstream": "127.0.0.1:8123",
+     "container": "homeassistant"
+    }
+   ],
+   "internal": true,
+   "auth": false,
+   "public": false,
+   "enabled": true,
+   "acl": {
+    "name": "Internal",
+    "clients": [
+     "10.0.0.0/24"
+    ]
+   },
+   "cert": null,
+   "ssl_forced": false,
+   "error": ""
+  },
+  {
+   "file": "proxy-host:11",
+   "id": 11,
+   "kind": "proxy",
+   "domains": [
+    "frigate.lan"
+   ],
+   "upstreams": [
+    "127.0.0.1:5000"
+   ],
+   "targets": [
+    {
+     "upstream": "127.0.0.1:5000",
+     "container": "frigate"
+    }
+   ],
+   "internal": true,
+   "auth": false,
+   "public": false,
+   "enabled": true,
+   "acl": {
+    "name": "Internal",
+    "clients": [
+     "10.0.0.0/24"
+    ]
+   },
+   "cert": null,
+   "ssl_forced": false,
+   "error": ""
+  },
+  {
+   "file": "proxy-host:12",
+   "id": 12,
+   "kind": "proxy",
+   "domains": [
+    "z2m.lan"
+   ],
+   "upstreams": [
+    "127.0.0.1:8081"
+   ],
+   "targets": [
+    {
+     "upstream": "127.0.0.1:8081",
+     "container": "zigbee2mqtt"
+    }
+   ],
+   "internal": true,
+   "auth": false,
+   "public": false,
+   "enabled": true,
+   "acl": {
+    "name": "Internal",
+    "clients": [
+     "10.0.0.0/24"
+    ]
+   },
+   "cert": null,
+   "ssl_forced": false,
+   "error": ""
+  },
+  {
+   "file": "proxy-host:13",
+   "id": 13,
+   "kind": "proxy",
+   "domains": [
+    "grafana.lan"
+   ],
+   "upstreams": [
+    "127.0.0.1:3001"
+   ],
+   "targets": [
+    {
+     "upstream": "127.0.0.1:3001",
+     "container": "grafana"
+    }
+   ],
+   "internal": true,
+   "auth": false,
+   "public": false,
+   "enabled": true,
+   "acl": {
+    "name": "Internal",
+    "clients": [
+     "10.0.0.0/24"
+    ]
+   },
+   "cert": null,
+   "ssl_forced": false,
+   "error": ""
+  },
+  {
+   "file": "proxy-host:14",
+   "id": 14,
+   "kind": "proxy",
+   "domains": [
+    "homepage.lan"
+   ],
+   "upstreams": [
+    "127.0.0.1:3002"
+   ],
+   "targets": [
+    {
+     "upstream": "127.0.0.1:3002",
+     "container": "homepage"
+    }
+   ],
+   "internal": true,
+   "auth": false,
+   "public": false,
+   "enabled": true,
+   "acl": {
+    "name": "Internal",
+    "clients": [
+     "10.0.0.0/24"
+    ]
+   },
+   "cert": null,
+   "ssl_forced": false,
+   "error": ""
+  },
+  {
+   "file": "proxy-host:15",
+   "id": 15,
+   "kind": "proxy",
+   "domains": [
+    "netdata.lan"
+   ],
+   "upstreams": [
+    "127.0.0.1:19999"
+   ],
+   "targets": [
+    {
+     "upstream": "127.0.0.1:19999",
+     "container": "netdata"
+    }
+   ],
+   "internal": true,
+   "auth": false,
+   "public": false,
+   "enabled": true,
+   "acl": {
+    "name": "Internal",
+    "clients": [
+     "10.0.0.0/24"
+    ]
+   },
+   "cert": null,
+   "ssl_forced": false,
+   "error": ""
+  },
+  {
+   "file": "proxy-host:16",
+   "id": 16,
+   "kind": "proxy",
+   "domains": [
+    "wud.lan"
+   ],
+   "upstreams": [
+    "127.0.0.1:3003"
+   ],
+   "targets": [
+    {
+     "upstream": "127.0.0.1:3003",
+     "container": "wud"
+    }
+   ],
+   "internal": true,
+   "auth": false,
+   "public": false,
+   "enabled": true,
+   "acl": {
+    "name": "Internal",
+    "clients": [
+     "10.0.0.0/24"
+    ]
+   },
+   "cert": null,
+   "ssl_forced": false,
+   "error": ""
+  },
+  {
+   "file": "proxy-host:17",
+   "id": 17,
+   "kind": "proxy",
+   "domains": [
+    "wharfmap.lan"
+   ],
+   "upstreams": [
+    "127.0.0.1:3008"
+   ],
+   "targets": [
+    {
+     "upstream": "127.0.0.1:3008",
+     "container": "wharfmap"
+    }
+   ],
+   "internal": true,
+   "auth": false,
+   "public": false,
+   "enabled": true,
+   "acl": {
+    "name": "Internal",
+    "clients": [
+     "10.0.0.0/24"
+    ]
+   },
+   "cert": null,
+   "ssl_forced": false,
+   "error": ""
+  },
+  {
+   "file": "proxy-host:18",
+   "id": 18,
+   "kind": "proxy",
+   "domains": [
+    "nodered.lan"
+   ],
+   "upstreams": [
+    "127.0.0.1:1880"
+   ],
+   "targets": [
+    {
+     "upstream": "127.0.0.1:1880",
+     "container": "node-red"
+    }
+   ],
+   "internal": true,
+   "auth": false,
+   "public": false,
+   "enabled": true,
+   "acl": {
+    "name": "Internal",
+    "clients": [
+     "10.0.0.0/24"
+    ]
+   },
+   "cert": null,
+   "ssl_forced": false,
+   "error": ""
+  },
+  {
+   "file": "proxy-host:19",
+   "id": 19,
+   "kind": "proxy",
+   "domains": [
+    "sonarr.lan"
+   ],
+   "upstreams": [
+    "127.0.0.1:8989"
+   ],
+   "targets": [
+    {
+     "upstream": "127.0.0.1:8989",
+     "container": "sonarr"
+    }
+   ],
+   "internal": true,
+   "auth": false,
+   "public": false,
+   "enabled": true,
+   "acl": {
+    "name": "Internal",
+    "clients": [
+     "10.0.0.0/24"
+    ]
+   },
+   "cert": null,
+   "ssl_forced": false,
+   "error": ""
+  },
+  {
+   "file": "proxy-host:20",
+   "id": 20,
+   "kind": "proxy",
+   "domains": [
+    "radarr.lan"
+   ],
+   "upstreams": [
+    "127.0.0.1:7878"
+   ],
+   "targets": [
+    {
+     "upstream": "127.0.0.1:7878",
+     "container": "radarr"
+    }
+   ],
+   "internal": true,
+   "auth": false,
+   "public": false,
+   "enabled": true,
+   "acl": {
+    "name": "Internal",
+    "clients": [
+     "10.0.0.0/24"
+    ]
+   },
+   "cert": null,
+   "ssl_forced": false,
+   "error": ""
+  },
+  {
+   "file": "proxy-host:21",
+   "id": 21,
+   "kind": "proxy",
+   "domains": [
+    "prowlarr.lan"
+   ],
+   "upstreams": [
+    "127.0.0.1:9696"
+   ],
+   "targets": [
+    {
+     "upstream": "127.0.0.1:9696",
+     "container": "prowlarr"
+    }
+   ],
+   "internal": true,
+   "auth": false,
+   "public": false,
+   "enabled": true,
+   "acl": {
+    "name": "Internal",
+    "clients": [
+     "10.0.0.0/24"
+    ]
+   },
+   "cert": null,
+   "ssl_forced": false,
+   "error": ""
+  },
+  {
+   "file": "proxy-host:22",
+   "id": 22,
+   "kind": "proxy",
+   "domains": [
+    "transmission.lan"
+   ],
+   "upstreams": [
+    "127.0.0.1:9091"
+   ],
+   "targets": [
+    {
+     "upstream": "127.0.0.1:9091",
+     "container": "transmission"
+    }
+   ],
+   "internal": true,
+   "auth": false,
+   "public": false,
+   "enabled": true,
+   "acl": {
+    "name": "Internal",
+    "clients": [
+     "10.0.0.0/24"
+    ]
+   },
+   "cert": null,
+   "ssl_forced": false,
+   "error": ""
+  },
+  {
+   "file": "proxy-host:23",
+   "id": 23,
+   "kind": "proxy",
+   "domains": [
+    "adguard.lan"
+   ],
+   "upstreams": [
+    "127.0.0.1:3000"
+   ],
+   "targets": [
+    {
+     "upstream": "127.0.0.1:3000",
+     "container": "adguard"
+    }
+   ],
+   "internal": true,
+   "auth": false,
+   "public": false,
+   "enabled": true,
+   "acl": {
+    "name": "Internal",
+    "clients": [
+     "10.0.0.0/24"
+    ]
+   },
+   "cert": null,
+   "ssl_forced": false,
+   "error": ""
+  },
+  {
+   "file": "proxy-host:24",
+   "id": 24,
+   "kind": "proxy",
+   "domains": [
+    "plex.lan"
+   ],
+   "upstreams": [
+    "127.0.0.1:32400"
+   ],
+   "targets": [
+    {
+     "upstream": "127.0.0.1:32400",
+     "container": "plex"
+    }
+   ],
+   "internal": true,
+   "auth": false,
+   "public": false,
+   "enabled": true,
+   "acl": {
+    "name": "Internal",
+    "clients": [
+     "10.0.0.0/24"
+    ]
+   },
+   "cert": null,
+   "ssl_forced": false,
+   "error": ""
+  }
+ ],
+ "edges": [
+  {
+   "source": "transmission",
+   "target": "vpn-client",
+   "kind": "netns",
+   "label": "shares netns"
+  },
+  {
+   "source": "sonarr",
+   "target": "vpn-client",
+   "kind": "netns",
+   "label": "shares netns"
+  },
+  {
+   "source": "radarr",
+   "target": "vpn-client",
+   "kind": "netns",
+   "label": "shares netns"
+  },
+  {
+   "source": "prowlarr",
+   "target": "vpn-client",
+   "kind": "netns",
+   "label": "shares netns"
+  },
+  {
+   "source": "nextcloud",
+   "target": "nextcloud-db",
+   "kind": "depends",
+   "label": "depends_on"
+  },
+  {
+   "source": "nextcloud",
+   "target": "nextcloud-redis",
+   "kind": "depends",
+   "label": "depends_on"
+  },
+  {
+   "source": "zigbee2mqtt",
+   "target": "mosquitto",
+   "kind": "depends",
+   "label": "depends_on"
+  },
+  {
+   "source": "frigate",
+   "target": "mosquitto",
+   "kind": "depends",
+   "label": "depends_on"
+  },
+  {
+   "source": "immich",
+   "target": "immich-db",
+   "kind": "depends",
+   "label": "depends_on"
+  },
+  {
+   "source": "immich",
+   "target": "immich-redis",
+   "kind": "depends",
+   "label": "depends_on"
+  },
+  {
+   "source": "immich",
+   "target": "immich-ml",
+   "kind": "depends",
+   "label": "depends_on"
+  },
+  {
+   "source": "open-webui",
+   "target": "ollama",
+   "kind": "depends",
+   "label": "depends_on"
+  },
+  {
+   "source": "alloy",
+   "target": "loki",
+   "kind": "depends",
+   "label": "depends_on"
+  },
+  {
+   "source": "grafana",
+   "target": "loki",
+   "kind": "depends",
+   "label": "depends_on"
+  },
+  {
+   "source": "open-webui",
+   "target": "ollama",
+   "kind": "env",
+   "label": "OLLAMA_BASE_URL"
+  },
+  {
+   "source": "homepage",
+   "target": "dockerproxy",
+   "kind": "env",
+   "label": "DOCKER_HOST"
+  },
+  {
+   "source": "alloy",
+   "target": "dockerproxy",
+   "kind": "env",
+   "label": "DOCKER_HOST"
+  },
+  {
+   "source": "wud",
+   "target": "dockerproxy",
+   "kind": "env",
+   "label": "WUD_WATCHER_LOCAL_HOST"
+  },
+  {
+   "source": "wharfmap",
+   "target": "dockerproxy",
+   "kind": "env",
+   "label": "DOCKER_HOST"
+  },
+  {
+   "source": "zigbee2mqtt",
+   "target": "mosquitto",
+   "kind": "env",
+   "label": "MQTT_SERVER"
+  },
+  {
+   "source": "seerr",
+   "target": "sonarr",
+   "kind": "env",
+   "label": "SONARR_URL :8989"
+  },
+  {
+   "source": "seerr",
+   "target": "radarr",
+   "kind": "env",
+   "label": "RADARR_URL :7878"
+  },
+  {
+   "source": "sonarr",
+   "target": "transmission",
+   "kind": "env",
+   "label": "TRANSMISSION_URL :9091"
+  },
+  {
+   "source": "radarr",
+   "target": "transmission",
+   "kind": "env",
+   "label": "TRANSMISSION_URL :9091"
+  },
+  {
+   "source": "sonarr",
+   "target": "prowlarr",
+   "kind": "env",
+   "label": "PROWLARR_URL :9696"
+  },
+  {
+   "source": "radarr",
+   "target": "prowlarr",
+   "kind": "env",
+   "label": "PROWLARR_URL :9696"
+  },
+  {
+   "source": "immich",
+   "target": "immich-db",
+   "kind": "env",
+   "label": "DB_HOSTNAME"
+  },
+  {
+   "source": "immich",
+   "target": "immich-redis",
+   "kind": "env",
+   "label": "REDIS_HOSTNAME"
+  },
+  {
+   "source": "immich",
+   "target": "immich-ml",
+   "kind": "env",
+   "label": "IMMICH_MACHINE_LEARNING_URL"
+  },
+  {
+   "source": "nextcloud",
+   "target": "nextcloud-db",
+   "kind": "env",
+   "label": "POSTGRES_HOST"
+  },
+  {
+   "source": "nextcloud",
+   "target": "nextcloud-redis",
+   "kind": "env",
+   "label": "REDIS_HOST"
+  },
+  {
+   "source": "grafana",
+   "target": "loki",
+   "kind": "env",
+   "label": "GF_DATASOURCE_LOKI"
+  },
+  {
+   "source": "homeassistant",
+   "target": "mosquitto",
+   "kind": "config",
+   "label": "integration mqtt"
+  },
+  {
+   "source": "homeassistant",
+   "target": "frigate",
+   "kind": "config",
+   "label": "integration frigate"
+  },
+  {
+   "source": "homeassistant",
+   "target": "plex",
+   "kind": "config",
+   "label": "integration plex"
+  },
+  {
+   "source": "homeassistant",
+   "target": "whisper",
+   "kind": "config",
+   "label": "integration wyoming"
+  },
+  {
+   "source": "homeassistant",
+   "target": "piper",
+   "kind": "config",
+   "label": "integration wyoming"
+  },
+  {
+   "source": "homeassistant",
+   "target": "adguard",
+   "kind": "config",
+   "label": "integration adguard"
+  },
+  {
+   "source": "homeassistant",
+   "target": "transmission",
+   "kind": "config",
+   "label": "integration transmission"
+  },
+  {
+   "source": "homeassistant",
+   "target": "lan:10.0.0.41",
+   "kind": "config",
+   "label": "integration hue"
+  },
+  {
+   "source": "homeassistant",
+   "target": "lan:10.0.0.60",
+   "kind": "config",
+   "label": "integration cast"
+  },
+  {
+   "source": "homeassistant",
+   "target": "lan:10.0.0.61",
+   "kind": "config",
+   "label": "integration cast"
+  },
+  {
+   "source": "frigate",
+   "target": "lan:10.0.0.50",
+   "kind": "config",
+   "label": "camera rtsp"
+  },
+  {
+   "source": "frigate",
+   "target": "lan:10.0.0.51",
+   "kind": "config",
+   "label": "camera rtsp"
+  },
+  {
+   "source": "frigate",
+   "target": "lan:10.0.0.52",
+   "kind": "config",
+   "label": "camera rtsp"
+  },
+  {
+   "source": "frigate",
+   "target": "mosquitto",
+   "kind": "config",
+   "label": "mqtt.host"
+  },
+  {
+   "source": "alloy",
+   "target": "loki",
+   "kind": "config",
+   "label": "loki push"
+  },
+  {
+   "source": "grafana",
+   "target": "loki",
+   "kind": "config",
+   "label": "datasource"
+  },
+  {
+   "source": "crowdsec",
+   "target": "npm",
+   "kind": "config",
+   "label": "acquisition npm logs"
+  },
+  {
+   "source": "dom:blog.example.com",
+   "target": "blog",
+   "kind": "ingress",
+   "label": "127.0.0.1:8180"
+  },
+  {
+   "source": "dom:cloud.example.com",
+   "target": "nextcloud",
+   "kind": "ingress",
+   "label": "127.0.0.1:11000"
+  },
+  {
+   "source": "dom:vault.example.com",
+   "target": "vaultwarden",
+   "kind": "ingress",
+   "label": "127.0.0.1:8222"
+  },
+  {
+   "source": "dom:photos.example.com",
+   "target": "immich",
+   "kind": "ingress",
+   "label": "127.0.0.1:2283"
+  },
+  {
+   "source": "dom:books.example.com",
+   "target": "audiobookshelf",
+   "kind": "ingress",
+   "label": "127.0.0.1:13378"
+  },
+  {
+   "source": "dom:read.example.com",
+   "target": "calibre-web",
+   "kind": "ingress",
+   "label": "127.0.0.1:8083"
+  },
+  {
+   "source": "dom:requests.example.com",
+   "target": "seerr",
+   "kind": "ingress",
+   "label": "127.0.0.1:5055"
+  },
+  {
+   "source": "dom:home.example.com",
+   "target": "homeassistant",
+   "kind": "ingress",
+   "label": "127.0.0.1:8123"
+  },
+  {
+   "source": "dom:chat.example.com",
+   "target": "open-webui",
+   "kind": "ingress",
+   "label": "127.0.0.1:3005"
+  },
+  {
+   "source": "dom:ha.lan",
+   "target": "homeassistant",
+   "kind": "ingress",
+   "label": "127.0.0.1:8123"
+  },
+  {
+   "source": "dom:frigate.lan",
+   "target": "frigate",
+   "kind": "ingress",
+   "label": "127.0.0.1:5000"
+  },
+  {
+   "source": "dom:z2m.lan",
+   "target": "zigbee2mqtt",
+   "kind": "ingress",
+   "label": "127.0.0.1:8081"
+  },
+  {
+   "source": "dom:grafana.lan",
+   "target": "grafana",
+   "kind": "ingress",
+   "label": "127.0.0.1:3001"
+  },
+  {
+   "source": "dom:homepage.lan",
+   "target": "homepage",
+   "kind": "ingress",
+   "label": "127.0.0.1:3002"
+  },
+  {
+   "source": "dom:netdata.lan",
+   "target": "netdata",
+   "kind": "ingress",
+   "label": "127.0.0.1:19999"
+  },
+  {
+   "source": "dom:wud.lan",
+   "target": "wud",
+   "kind": "ingress",
+   "label": "127.0.0.1:3003"
+  },
+  {
+   "source": "dom:wharfmap.lan",
+   "target": "wharfmap",
+   "kind": "ingress",
+   "label": "127.0.0.1:3008"
+  },
+  {
+   "source": "dom:nodered.lan",
+   "target": "node-red",
+   "kind": "ingress",
+   "label": "127.0.0.1:1880"
+  },
+  {
+   "source": "dom:sonarr.lan",
+   "target": "sonarr",
+   "kind": "ingress",
+   "label": "127.0.0.1:8989"
+  },
+  {
+   "source": "dom:radarr.lan",
+   "target": "radarr",
+   "kind": "ingress",
+   "label": "127.0.0.1:7878"
+  },
+  {
+   "source": "dom:prowlarr.lan",
+   "target": "prowlarr",
+   "kind": "ingress",
+   "label": "127.0.0.1:9696"
+  },
+  {
+   "source": "dom:transmission.lan",
+   "target": "transmission",
+   "kind": "ingress",
+   "label": "127.0.0.1:9091"
+  },
+  {
+   "source": "dom:adguard.lan",
+   "target": "adguard",
+   "kind": "ingress",
+   "label": "127.0.0.1:3000"
+  },
+  {
+   "source": "dom:plex.lan",
+   "target": "plex",
+   "kind": "ingress",
+   "label": "127.0.0.1:32400"
+  }
+ ],
+ "lan_hosts": {
+  "10.0.0.41": {
+   "label": "Hue bridge (hue)",
+   "kind": "device"
+  },
+  "10.0.0.50": {
+   "label": "camera 10.0.0.50",
+   "kind": "device"
+  },
+  "10.0.0.51": {
+   "label": "camera 10.0.0.51",
+   "kind": "device"
+  },
+  "10.0.0.52": {
+   "label": "camera 10.0.0.52",
+   "kind": "device"
+  },
+  "10.0.0.60": {
+   "label": "Living room TV (cast)",
+   "kind": "device"
+  },
+  "10.0.0.61": {
+   "label": "Kitchen display (cast)",
+   "kind": "device"
+  }
+ }
+}

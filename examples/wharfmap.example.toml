@@ -1,0 +1,86 @@
+# Example Wharfmap config for a mid-sized homelab: NPMPlus in front, Home Assistant,
+# Frigate, Grafana and a VPN-namespaced download stack. Everything not listed here is
+# discovered live from Docker. Copy to wharfmap.toml and edit.
+
+title = "Harbor Homelab Map"
+
+[host]
+name = "harbor"
+ip = "10.0.0.10"
+aliases = ["harbor.lan"]
+lan_cidrs = ["10.0.0.0/24"]
+
+[output]
+dir = "out"
+
+# Docker cannot see what host-network containers listen on.
+[host_net_ports]
+homeassistant = [8123]
+plex = [32400]
+musicassistant = [8095]
+adguardhome = [53, 67, 8082]
+esphome = [6052]
+netdata = [19999]
+npmplus = [80, 443, 81]
+crowdsec = [8080]
+wireguard = [51820]
+timemachine = [445]
+
+[lan_hosts]
+"10.0.0.24" = "ADS-B feeder Pi"
+"10.0.0.29" = "BirdNET Pi"
+
+[ingress]
+provider = "auto"       # read-only file mode; upgrades itself to npm-api when api_url is set AND NPM_EMAIL/NPM_PASSWORD (or NPM_TOKEN) are in the env
+container = "npmplus"           # or conf_dir = "/npm/proxy_host" when the socket proxy is read-only (no exec)
+public_suffixes = [".example.com"]
+api_url = "https://10.0.0.10:81"   # optional; needs NPM_EMAIL/NPM_PASSWORD or NPM_TOKEN in the environment
+api_verify_tls = false                 # NPMPlus serves its own cert on :81
+
+[zones]
+order = ["Edge & infrastructure", "Sites & hosting", "Home & IoT", "Media & downloads", "Radio & aircraft", "AI & voice", "Ops & monitoring"]
+[zones.groups]
+"Security Services" = "Edge & infrastructure"
+"Core Infrastructure" = "Edge & infrastructure"
+"Support Services" = "Ops & monitoring"
+"Monitoring Services" = "Ops & monitoring"
+"Home Automation" = "Home & IoT"
+"IoT Services" = "Home & IoT"
+"Media Services" = "Media & downloads"
+"Torrents Services" = "Media & downloads"
+"RF Services" = "Radio & aircraft"
+"AI Services" = "AI & voice"
+"CDN & Hosting" = "Sites & hosting"
+"Collaboration" = "Sites & hosting"
+
+[links]
+"buy me coffee" = "https://buymeacoffee.com/you"
+
+# Wiring that only exists in application config files.
+[[config_refs]]
+container = "frigate"
+type = "frigate"
+glob = "/opt/stacks/iot-services/frigate/config/config.yml"
+
+[[config_refs]]
+container = "homeassistant"
+type = "homeassistant"
+glob = "/opt/stacks/homeassistant-services/config/.storage/core.config_entries"
+
+[[config_refs]]
+container = "grafana-adsb"
+type = "regex"
+glob = "/opt/stacks/rf-services/grafana*/**/datasources/*.y*ml"
+label = "datasource"
+
+[[config_refs]]
+container = "alloy"
+type = "regex"
+glob = "/opt/stacks/monitoring-services/alloy/config.alloy"
+regex = 'url\s*=\s*"([^"]+)"'
+label = "loki push"
+
+[[config_refs]]
+container = "prometheus-adsb"
+type = "prometheus"
+glob = "/opt/stacks/rf-services/prometheus/config/prometheus.yml"

@@ -1,0 +1,32 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "wharfmap"
+version = "0.1.0"
+description = "Chart a Docker host: containers, networks, ports, proxy domains and the wiring between them, discovered live."
+readme = "README.md"
+license = {text = "MIT"}
+requires-python = ">=3.11"
+authors = [{name = "Anthony Hook"}]
+keywords = ["docker", "homelab", "topology", "diagram", "inventory", "self-hosted"]
+classifiers = [
+  "Programming Language :: Python :: 3",
+  "License :: OSI Approved :: MIT License",
+  "Topic :: System :: Systems Administration",
+  "Environment :: Console",
+]
+dependencies = []
+
+[project.scripts]
+wharfmap = "wharfmap.cli:main"
+
+[project.urls]
+Homepage = "https://github.com/hook-365/wharfmap"
+
+[tool.setuptools.packages.find]
+include = ["wharfmap*"]
+
+[tool.setuptools.package-data]
+wharfmap = ["viewer.html"]

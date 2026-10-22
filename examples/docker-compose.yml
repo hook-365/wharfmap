@@ -1,0 +1,16 @@
+services:
+  wharfmap:
+    image: ghcr.io/hook-365/wharfmap:latest   # or: build: .
+    container_name: wharfmap
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:3008:3008"      # put your reverse proxy in front; this is a full port inventory
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - ./wharfmap.toml:/app/wharfmap.toml:ro
+      - /opt/stacks:/opt/stacks:ro   # only needed for [[config_refs]] that read files
+      - wharfmap-out:/out
+    security_opt:
+      - no-new-privileges:true
+volumes:
+  wharfmap-out:
