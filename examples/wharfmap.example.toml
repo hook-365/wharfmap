@@ -53,6 +53,8 @@ order = ["Edge & infrastructure", "Sites & hosting", "Home & IoT", "Media & down
 # targets, Alloy/Promtail push URLs…) is found automatically: the known-apps table says where each app keeps
 # its config inside the container, and Docker says where that is on the host. Add [[config_refs]] only for
 # files it cannot find, or set auto_refs = false to turn it off.
+ghosts = true   # compose services defined but not created (profiles, commented-out) show as dotted chips; needs the compose files readable
+
 # [[config_refs]]
 # container = "my-custom-app"
 # type = "regex"                 # regex | frigate | homeassistant | prometheus

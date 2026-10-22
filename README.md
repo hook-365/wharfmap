@@ -82,6 +82,12 @@ uses it two ways:
   that path is on the host, via the container's bind mounts. Wharfmap reads it there. In a
   container, mount your compose tree read-only at the same path so those files are reachable.
 
+It also reads the compose files themselves (Docker labels every container with the path of
+the file it came from) and lists services that are defined but have no container: things
+behind a profile, or that you commented out and forgot. They show as dotted "not created"
+chips when stopped containers are switched on. Set `ghosts = false` to skip this, and note
+that in a container it only works for compose files you've mounted.
+
 `wharfmap doctor` prints what it decided and why, line by line, and the handful of things it
 couldn't work out. On the lab this was built on, that turned a 60-line config into a one-line
 port override and a public-domain suffix. Additions to the table are the easiest pull request
@@ -129,6 +135,7 @@ order = ["Edge & infrastructure", "Media", "Home & IoT", "Ops"]
 "buy me coffee" = "https://buymeacoffee.com/you"
 
 auto_refs = true               # read known apps' config files via their bind mounts
+ghosts = true                  # list compose services that have no container (needs the compose files readable)
 
 [[config_refs]]                # only for files the known-apps table doesn't cover
 container = "grafana"

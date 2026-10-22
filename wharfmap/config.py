@@ -57,6 +57,7 @@ class Config:
     zone_order: list[str] = field(default_factory=list)
     zone_of_group: dict[str, str] = field(default_factory=dict)
     config_refs: list[ConfigRef] = field(default_factory=list)
+    ghosts: bool = True             # show compose services that are defined but have no container
     auto_refs: bool = True          # read known apps' config files via their bind mounts without being told where
     links: dict[str, str] = field(default_factory=dict)  # footer links, e.g. "buy me coffee" = "https://buymeacoffee.com/you"
     env_skip_keys: list[str] = field(default_factory=lambda: ["PATH", "HOME", "PUID", "PGID", "TZ"])
@@ -112,6 +113,7 @@ def load(path: str | pathlib.Path | None) -> Config:
     cfg.zone_of_group = dict(zones.get("groups", {}))
     cfg.config_refs = [ConfigRef(**r) for r in raw.get("config_refs", [])]
     cfg.auto_refs = bool(raw.get("auto_refs", cfg.auto_refs))
+    cfg.ghosts = bool(raw.get("ghosts", cfg.ghosts))
     cfg.links = {str(k): str(v) for k, v in raw.get("links", {}).items()}
     cfg.env_skip_keys = list(raw.get("env", {}).get("skip_keys", cfg.env_skip_keys))
     return cfg

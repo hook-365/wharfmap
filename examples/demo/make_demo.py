@@ -82,6 +82,7 @@ C("grafana", "monitoring", "Monitoring", "Grafana", "grafana/grafana:latest", ne
 C("wud", "monitoring", "Monitoring", "What's Up Docker", "getwud/wud:latest", nets=("dockersock",), ports=[(LO, 3003, 3000)])
 C("wharfmap", "monitoring", "Monitoring", "Wharfmap", "ghcr.io/hook-365/wharfmap:latest", nets=("seg_monitoring", "dockersock"), ports=[(LO, 3008, 3008)], desc="This map")
 C("old-dashboard", "monitoring", "Monitoring", "Old Dashboard", "ghcr.io/example/dashboard:1.2", nets=("seg_monitoring",), status="exited")
+g = C("ai-llamacpp", "ai", "AI", "llamacpp", "ghcr.io/ggml-org/llama.cpp:server", status="not created", desc="profile: local-llm"); g["ghost"] = True; g["profiles"] = ["local-llm"]; g["group"] = None
 
 # structural edges
 for c in containers:

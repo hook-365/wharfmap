@@ -83,6 +83,8 @@ button:hover,button:focus-visible{border-color:var(--accent);outline:none}
 .node .dot{position:absolute;left:9px;top:11px;width:8px;height:8px;border-radius:50%;background:var(--ok)}
 .node[data-status="bad"] .dot{background:var(--bad)} .node[data-status="warn"] .dot{background:var(--warn)}
 .node[data-status="bad"]{border-style:dashed;opacity:.8}
+.node[data-ghost="1"]{border-style:dotted;opacity:.65}
+.node[data-ghost="1"] .dot{background:transparent;border:1.5px solid var(--muted)}
 .node[data-hostnet="1"]{border-style:double;border-width:3px;padding-left:22px}
 .node .t{display:block;font-size:12.5px;line-height:1.3;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .node .b{display:flex;flex-wrap:wrap;gap:3px;margin-top:3px;min-width:0}
@@ -233,11 +235,12 @@ const titleOf=id=>byId[id]?.title||(id.startsWith('lan:')?DATA.lan_hosts[id.slic
 
 // ---- render ----
 const nodeHtml=c=>{const d=domsOf[c.id]||[];const b=[];
+  if(c.ghost)b.push(`<span title="${esc(c.desc)}">not created</span>`);
   if(c.hostnet)b.push('<span title="host network">host net</span>');
   if(lanOpen(c))b.push('<span class="lan" title="port reachable from the LAN">LAN-open</span>');
   for(const n of Object.keys(c.ips)) if(NETCOL[n]) b.push(`<span class="netb" data-net="net:${esc(n)}" style="--nc:${NETCOL[n]}" title="${esc(n)} ${esc(c.ips[n])}">${esc(netShort(n))}</span>`);
   for(const x of d)b.push(`<span class="dom${x.int?' int':''}${x.h.cert?.warn||x.h.error?' warn':''}${x.h.enabled===false?' off':''}" title="${esc(domTitle(x.h))}">${esc(x.d)}</span>`);
-  return `<button class="node" data-id="${esc(c.id)}" data-status="${stateOf(c)}" data-hostnet="${c.hostnet?1:0}" data-stack="${esc(c.stack)}" title="${esc(c.name)} · ${esc(c.image)}"><span class="dot"></span><span class="t">${esc(c.title)}</span>${b.length?`<span class="b">${b.join('')}</span>`:''}</button>`;};
+  return `<button class="node" data-id="${esc(c.id)}" data-status="${stateOf(c)}" data-ghost="${c.ghost?1:0}" data-hostnet="${c.hostnet?1:0}" data-stack="${esc(c.stack)}" title="${esc(c.name)} · ${esc(c.image)}"><span class="dot"></span><span class="t">${esc(c.title)}</span>${b.length?`<span class="b">${b.join('')}</span>`:''}</button>`;};
 const sortC=(a,b)=>{const an=!!nsKids[a.id],bn=!!nsKids[b.id];if(an!==bn)return an?-1:1;return a.title.localeCompare(b.title);};
 let html=`<section class="zone" id="netZone"><h2>Docker networks</h2><div class="aux">${NETS.map(n=>`<button class="node net" data-id="net:${esc(n.name)}" style="--nc:${NETCOL[n.name]}" title="${esc(n.subnet||'')}"><span class="t">${esc(netShort(n.name))}<span class="n">${n.members.length}</span></span></button>`).join('')}</div></section>`;
 for(const z of ZONE_ORDER){const sts=stacks.filter(s=>zoneOfStack[s]===z);if(!sts.length)continue;
@@ -270,9 +273,9 @@ function applyFilters(){
   stats(); drawWires();
 }
 function stats(){
-  const vis=$$('.card .node:not(.off)').filter(n=>!n.closest('.off')).length;
+  const vis=$$('.card .node:not(.off)').filter(n=>!n.closest('.off')).length, ghosts=C.filter(c=>c.ghost).length;
   const certs=DATA.ingress.filter(h=>h.cert), warn=certs.filter(h=>h.cert.warn).length, dis=DATA.ingress.filter(h=>h.enabled===false).length;
-  $('#stats').innerHTML=`<b>${vis}</b>/${C.length} containers · <b>${stacks.length}</b> stacks · <b>${DATA.ingress.length}</b> proxy hosts${dis?` (<b>${dis}</b> disabled)`:''} · <b>${DATA.networks.length}</b> networks · <b>${DATA.edges.length}</b> edges${certs.length?`<br><b>${certs.length}</b> certs · <b style="color:${warn?'var(--bad)':'inherit'}">${warn}</b> need renewal`:''}`;
+  $('#stats').innerHTML=`<b>${vis}</b>/${C.length-ghosts} containers${ghosts?` (+${ghosts} not created)`:''} · <b>${stacks.length}</b> stacks · <b>${DATA.ingress.length}</b> proxy hosts${dis?` (<b>${dis}</b> disabled)`:''} · <b>${DATA.networks.length}</b> networks · <b>${DATA.edges.length}</b> edges${certs.length?`<br><b>${certs.length}</b> certs · <b style="color:${warn?'var(--bad)':'inherit'}">${warn}</b> need renewal`:''}`;
 }
 $$('#rail input[type=checkbox]').forEach(i=>i.addEventListener('change',applyFilters));
 $('#allStacks').onclick=()=>{$$('input[data-stack]').forEach(i=>i.checked=true);applyFilters();};

@@ -6,6 +6,7 @@ be inferred without reading any application config (netns sharing, depends_on, e
 from __future__ import annotations
 
 import json
+import os
 import re
 import subprocess
 from dataclasses import dataclass, field
@@ -33,6 +34,7 @@ class Graph:
     lan_kind: dict[str, str] = field(default_factory=dict)
     refs_used: list[dict] = field(default_factory=list)
     refs_skipped: list[dict] = field(default_factory=list)
+    compose_unreachable: set = field(default_factory=set)
     _seen: set = field(default_factory=set)
 
     # ---- edges ----
@@ -114,6 +116,7 @@ def discover(cfg: Config) -> Graph:
             "mounts": {m["Destination"]: m["Source"] for m in c.get("Mounts") or [] if m.get("Source") and m.get("Destination")},
             "pid": (c.get("State") or {}).get("Pid") or 0,
             "app": (known_app(c["Config"]["Image"], name) or {}).get("name"),
+            "compose_files": [f for f in (L.get("com.docker.compose.project.config_files") or "").split(",") if f],
             "created": c["Created"][:10],
         }
         if n["hostnet"]:
@@ -154,6 +157,8 @@ def discover(cfg: Config) -> Graph:
                            "gateway": ipam.get("Gateway"), "ip_range": ipam.get("IPRange"),
                            "members": sorted(v["Name"] for v in (nw.get("Containers") or {}).values())})
 
+    if cfg.ghosts:
+        _ghost_services(g)
     _structural_edges(g)
     _env_edges(g)
     g.lan_labels.update(cfg.lan_hosts)
@@ -236,6 +241,89 @@ def _listening_ports(pid: int, cid: str = "") -> list[int]:
         except OSError:
             continue
     return sorted(ports)
+
+
+def _compose_services(path: str) -> dict[str, dict]:
+    """Service names (+ image, profiles) from a compose file. Uses PyYAML if it happens to be installed,
+    otherwise a small indentation scan that only looks at the top-level `services:` block."""
+    try:
+        text = open(path, encoding="utf-8", errors="replace").read()
+    except OSError:
+        return {}
+    try:
+        import yaml  # type: ignore
+        doc = yaml.safe_load(text) or {}
+        return {k: {"image": (v or {}).get("image", ""), "profiles": list((v or {}).get("profiles") or [])}
+                for k, v in (doc.get("services") or {}).items()}
+    except ImportError:
+        pass
+    except Exception:
+        return {}
+    out: dict[str, dict] = {}
+    in_services, cur, in_profiles = False, None, False
+    for raw in text.splitlines():
+        line = raw.split("#", 1)[0].rstrip()
+        if not line.strip():
+            continue
+        indent = len(line) - len(line.lstrip())
+        if indent == 0:
+            in_services = line.strip() == "services:"
+            cur = None
+            continue
+        if not in_services:
+            continue
+        m = re.match(r"^  ([A-Za-z0-9_.-]+):\s*$", line)
+        if m and indent == 2:
+            cur = m.group(1)
+            out[cur] = {"image": "", "profiles": []}
+            in_profiles = False
+            continue
+        if cur and indent >= 4:
+            m = re.match(r"^\s+image:\s*['\"]?([^'\"]+?)['\"]?\s*$", line)
+            if m:
+                out[cur]["image"] = m.group(1)
+            m = re.match(r"^\s+profiles:\s*\[([^\]]*)\]", line)
+            if m:
+                out[cur]["profiles"] = [p.strip(" '\"") for p in m.group(1).split(",") if p.strip()]
+            elif re.match(r"^\s+profiles:\s*$", line):
+                in_profiles = True
+                continue
+            elif in_profiles and re.match(r"^\s+-\s*", line):
+                out[cur]["profiles"].append(line.split("-", 1)[1].strip(" '\""))
+                continue
+            in_profiles = False
+    return out
+
+
+def _ghost_services(g: Graph) -> None:
+    """Compose services that exist in the file but have no container (profiles, commented-out deploys,
+    never-started services). Shown as 'not created' chips so the map matches the compose files, not just Docker."""
+    seen: set[tuple[str, str]] = set()
+    for c in list(g.containers):
+        project = c["stack"]
+        for path in c["compose_files"]:
+            if (project, path) in seen:
+                continue
+            seen.add((project, path))
+            services = _compose_services(path)
+            if not services:
+                if path and not os.path.exists(path):
+                    g.compose_unreachable.add(path)
+                continue
+            have = {x["service"] for x in g.containers if x["stack"] == project}
+            for svc, meta in services.items():
+                if svc in have:
+                    continue
+                name = f"{project}-{svc}"
+                g.containers.append({
+                    "id": name, "name": name, "stack": project, "service": svc, "status": "not created", "health": None,
+                    "image": meta.get("image") or "", "networks": [], "ips": {}, "ports": [], "exposed": [],
+                    "hostnet": False, "netns": None, "depends_on": [], "title": svc, "group": None,
+                    "desc": ("profile: " + ", ".join(meta["profiles"])) if meta.get("profiles") else "defined in compose, no container",
+                    "href": None, "env": [], "labels": {}, "mounts": {}, "pid": 0, "app": None, "compose_files": [path],
+                    "created": "", "ghost": True, "profiles": meta.get("profiles", []),
+                })
+                g.by_name.setdefault(name, g.containers[-1])
 
 
 def _guess_stack(name: str) -> str:

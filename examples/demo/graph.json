@@ -1264,6 +1264,30 @@
    "desc": "",
    "href": null,
    "created": "2026-03-14"
+  },
+  {
+   "id": "ai-llamacpp",
+   "name": "ai-llamacpp",
+   "stack": "ai",
+   "service": "ai-llamacpp",
+   "status": "not created",
+   "health": null,
+   "image": "ghcr.io/ggml-org/llama.cpp:server",
+   "networks": [],
+   "ips": {},
+   "ports": [],
+   "hostnet": false,
+   "netns": null,
+   "depends_on": [],
+   "title": "llamacpp",
+   "group": null,
+   "desc": "profile: local-llm",
+   "href": null,
+   "created": "2026-03-14",
+   "ghost": true,
+   "profiles": [
+    "local-llm"
+   ]
   }
  ],
  "networks": [

@@ -140,9 +140,19 @@ def cmd_doctor(args) -> int:
         out.append("")
         out.append("LAN hosts referenced but unnamed (optional: name them under [lan_hosts]):")
         out += [f"  {ip}" for ip in lan]
+    ghosts = [c for c in g.containers if c.get("ghost")]
+    if ghosts:
+        out.append("")
+        out.append("Compose services with no container (shown as 'not created' when stopped containers are on):")
+        for c in ghosts:
+            out.append(f"  {c['stack']:24} {c['service']:24} {c['desc']}")
+    if g.compose_unreachable:
+        out.append("")
+        out.append("Compose files Wharfmap can't read (mount them read-only at the same path to see undeployed services):")
+        out += [f"  {p}" for p in sorted(g.compose_unreachable)]
     hosts = sum(1 for h in g.ingress)
     out.append("")
-    out.append(f"{len(g.containers)} containers, {len(g.networks)} networks, {hosts} proxy hosts, {len(g.edges)} edges. "
+    out.append(f"{len(g.containers) - len(ghosts)} containers, {len(g.networks)} networks, {hosts} proxy hosts, {len(g.edges)} edges. "
                f"Ingress provider: {'none' if not hosts else 'npm-api' if any(h.get('cert') is not None or h.get('acl') for h in g.ingress) else cfg.ingress_provider}.")
     print("\n".join(out))
     return 0
