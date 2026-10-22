@@ -1,47 +1,42 @@
 # Wharfmap
 
-**Chart a Docker host.** Wharfmap discovers every container, network, published port,
-reverse-proxy domain and the wiring between them straight from the Docker engine, and
-renders it as a single self-contained HTML page you can actually read.
+Wharfmap draws a map of a Docker host. It asks Docker what's running, reads your reverse proxy
+to see which domain goes where, and renders the whole thing as one HTML page: every container,
+network, published port, and the wiring between them.
 
-No agents, no database, no graph library, no dependencies beyond Python 3.11 and the
-`docker` CLI. It is not a dashboard and it does not replace one; it is the map that
-your dashboard, your compose files and your notes never quite add up to.
+I built it for my own homelab because I kept forgetting which port went to what, and the
+compose files, the dashboard, and my notes never quite added up to the same answer. Docker
+already knows most of it. This just asks and draws it.
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="docs/screenshot-dark.jpg">
   <img alt="Wharfmap showing a media stack and a VPN-namespaced download stack with env-var wiring drawn" src="docs/screenshot-light.jpg">
 </picture>
 
-*The demo data above is fictional (`examples/demo/`). Try the viewer without Docker:*
+*The data above is made up (`examples/demo/`). To see the viewer without Docker:*
 `python -m wharfmap render -i examples/demo/graph.json -o out && open out/index.html`
 
-## What it finds, with zero configuration
+## What it finds on its own
 
-| Source | Yields |
+| Source | What you get |
 |---|---|
-| `docker inspect` on every container | stacks (compose project), service names, status and health, image, networks and IPs, published ports with the host interface they bind to, `network_mode: service:` sharing, `depends_on` |
-| container environment | runtime references: an env var whose value names another container, or `host:port` on this host, becomes an edge (`SONARR_URL=http://sonarr:8989`) |
-| `docker network inspect` | subnets, gateways, dynamic IP ranges, membership |
+| `docker inspect` on every container | stacks (compose project), service names, status and health, image, networks and IPs, published ports with the interface they bind to, `network_mode: service:` sharing, `depends_on` |
+| container environment | runtime references. If an env var names another container or points at `host:port` on this box (`SONARR_URL=http://sonarr:8989`), that becomes a line on the map |
+| `docker network inspect` | subnets, gateways, dynamic ranges, membership |
 | `homepage.*` / `wharfmap.*` labels | display name, description, group, link |
-| Nginx Proxy Manager / NPMPlus (rendered configs, or the API if you give it credentials) or Traefik (router labels) | which domain lands on which container, LAN-only versus public; with the API also enabled flags, ACL names, certificate expiry, redirects and streams |
+| Nginx Proxy Manager / NPMPlus (rendered configs, or the API if you give it credentials) or Traefik (router labels) | which domain lands on which container, LAN-only versus public; with the API also enabled flags, access-list names, certificate expiry, redirects and streams |
 
-The page shows zones of stacks of containers at real text size. Containers sharing a
-network namespace (the VPN pattern) are nested inside their parent. Host-network
-containers, LAN-open ports, public domains and Docker network membership are badges.
-Click anything to see its ports, networks, domains and every relationship, and to draw
-its wiring. Double-click to isolate it. Search matches names, images, ports, IPs and
-domains. Light and dark themes follow your system, or click the toggle in the header.
+The page is zones of stacks of containers at normal text size, so you can read it. Containers
+that share a network namespace (the usual VPN setup) are nested inside their parent.
+Host-network containers, LAN-open ports, public domains, and Docker network membership show
+up as badges on each container. Click one to see its ports, networks, domains, and
+everything it talks to, with the wiring drawn. Double-click to isolate it. Search matches
+names, images, ports, IPs, and domains. There's a light theme and a dark theme; it follows
+your system until you click the toggle.
 
-## Quick start
+## Running it
 
-```bash
-pipx install git+https://github.com/hook-365/wharfmap   # or: pip install git+..., or run from a clone with python -m wharfmap
-wharfmap generate               # writes out/graph.json and out/index.html
-wharfmap serve --port 3008      # same, then serves out/ (POST /regenerate to refresh)
-```
-
-Or as a container, next to the things it maps:
+As a container, next to the things it maps:
 
 ```yaml
 services:
@@ -53,40 +48,49 @@ services:
       - ./wharfmap.toml:/app/wharfmap.toml:ro
 ```
 
-A read-only Docker socket proxy works too: set `DOCKER_HOST=tcp://dockerproxy:2375`
-and give the proxy `CONTAINERS=1 NETWORKS=1`. Then use `conf_dir` for NPM (below)
-instead of `docker exec`.
+That serves the map on port 3008, regenerates every five minutes, and also regenerates when
+you `POST /regenerate`. If you use a read-only Docker socket proxy, set
+`DOCKER_HOST=tcp://dockerproxy:2375`, give the proxy `CONTAINERS=1 NETWORKS=1`, and use
+`conf_dir` for NPM (below) since the container can't exec into anything.
 
-**Put a reverse proxy with an allow-list in front of it.** The page is a complete port
-and topology inventory of your host. Wharfmap binds to localhost by default for that
-reason.
+Or as a plain Python tool, no dependencies beyond Python 3.11 and the `docker` CLI:
+
+```bash
+pipx install git+https://github.com/hook-365/wharfmap   # or pip install git+..., or python -m wharfmap from a clone
+wharfmap generate               # writes out/graph.json and out/index.html
+wharfmap serve --port 3008      # same, then serves out/
+```
+
+One thing to know before you expose it: the page is a complete list of your ports and what's
+behind them. Keep it on the LAN, behind whatever allow-list your proxy has. It binds to
+localhost by default for that reason.
 
 ## Configuration
 
-Run `wharfmap init > wharfmap.toml` to get a starter file populated from your host.
-Every key is optional. The things Docker cannot tell us are:
+`wharfmap init > wharfmap.toml` prints a starter file populated from your host. Every key is
+optional. The config covers the handful of things Docker can't tell us:
 
 ```toml
 title = "Harbor Homelab Map"
 
 [host]
 name = "harbor"
-ip = "10.0.0.10"           # how other machines reach this host; auto-detected if omitted
+ip = "10.0.0.10"               # how other machines reach this host; auto-detected if omitted
 aliases = ["harbor.lan"]       # other names containers use for this host
-lan_cidrs = ["10.0.0.0/24"] # what counts as "another LAN machine" (default: the /24 around ip)
+lan_cidrs = ["10.0.0.0/24"]    # what counts as "another machine on the LAN" (default: the /24 around ip)
 
-[host_net_ports]               # network_mode: host containers have no port mappings
+[host_net_ports]               # network_mode: host containers have no port mappings, so list theirs
 homeassistant = [8123]
 plex = [32400]
 
-[lan_hosts]                    # friendly names for LAN IPs that show up in env vars / configs
+[lan_hosts]                    # names for LAN IPs that show up in env vars and configs
 "10.0.0.24" = "ADS-B feeder Pi"
 
 [ingress]
 provider = "auto"              # auto | npm | npm-api | traefik | none
 container = "npmplus"          # npm: container to docker exec into, or...
 conf_dir = "/npm/proxy_host"   # ...a bind mount of its data/nginx/proxy_host (no exec needed)
-api_url = "https://127.0.0.1:81"   # optional: NPM admin API for enabled flags, ACL names, cert expiry, redirects, streams
+api_url = "https://127.0.0.1:81"   # optional: the NPM API, for cert expiry and friends
 api_verify_tls = false         # NPM's :81 usually has a self-signed cert
 public_suffixes = [".example.com"]
 
@@ -96,7 +100,7 @@ order = ["Edge & infrastructure", "Media", "Home & IoT", "Ops"]
 "Security Services" = "Edge & infrastructure"
 "Media Services" = "Media"
 
-[links]                        # footer links; anything mentioning coffee/ko-fi/sponsor gets the accent style
+[links]                        # header links; anything mentioning coffee, ko-fi, sponsor gets the accent colour
 "buy me coffee" = "https://buymeacoffee.com/you"
 
 [[config_refs]]                # wiring that only exists in app config files
@@ -112,52 +116,51 @@ regex = 'url:\s*(\S+)'
 label = "datasource"
 ```
 
-See [`examples/wharfmap.example.toml`](examples/wharfmap.example.toml) for a complete
-config modelled on the ~110-container homelab Wharfmap was built on.
+[`examples/wharfmap.example.toml`](examples/wharfmap.example.toml) is a complete config,
+modelled on the ~110-container homelab I run this on.
 
-### NPM: files by default, API when you want more
+### NPM: files by default, the API if you want more
 
-The default NPM reader needs no credentials: it parses the nginx configs NPM has rendered,
-which gives domains, upstreams, and whether an access list or auth is attached. That is
-enough for the map.
+The default NPM reader needs no credentials. It parses the nginx configs NPM has already
+rendered, which gives you domains, upstreams, and whether an access list or auth is on the
+host. That's enough for the map.
 
-Set `api_url` and put credentials in the **environment** (never in the config file) and
-`auto` upgrades itself to the API, which adds per domain: enabled/disabled, the access
-list's name and allowed ranges, certificate provider and expiry, plus redirection hosts
-and TCP/UDP streams.
+If you set `api_url` and put credentials in the environment (not the config file), `auto`
+switches to the API, which adds per domain: enabled or disabled, the access list's name and
+allowed ranges, certificate provider and expiry, plus redirection hosts and TCP/UDP streams.
 
 ```
 NPM_TOKEN=...                      # a pre-issued token, or
-NPM_EMAIL=... NPM_PASSWORD=...     # to log in (works for vanilla NPM and NPMPlus)
+NPM_EMAIL=... NPM_PASSWORD=...     # to log in (vanilla NPM and NPMPlus both work)
 ```
 
-If the API is unreachable or the login fails, Wharfmap logs one line and falls back to the
-file reader, so turning the API on can only add information. Certificate warnings are
-relative to each cert's lifetime (under a third remaining), because Let's Encrypt now
-issues 6-day certificates alongside 90-day ones and a fixed "14 days left" rule would
-flag every short-lived cert all the time.
+If the API is unreachable or the login fails, you get one line in the log and the file reader
+takes over, so turning the API on can't lose you anything. Certificate warnings are relative to
+each cert's lifetime (under a third remaining) because Let's Encrypt now issues 6-day
+certificates next to 90-day ones, and a fixed "14 days left" rule would flag the short ones
+all the time.
 
 ### Labels
 
-Wharfmap reads [Homepage](https://gethomepage.dev) labels so most people get names
-and groups for free. To tune the map without touching your dashboard, use the same
+Wharfmap reads [Homepage](https://gethomepage.dev) labels, so if you already use Homepage you
+get names and groups for free. To tune the map without touching the dashboard, use the same
 keys under `wharfmap.`: `wharfmap.name`, `wharfmap.group`, `wharfmap.description`,
 `wharfmap.href`. The `wharfmap.` key wins when both exist.
 
 ## Secrets
 
-Nothing from env var *values* is written out except a port number or a container
-name that matched. URLs in config files are reduced to host and port; userinfo is
-discarded. `generate` warns if an edge label looks like it carries a credential.
-Still: the output is an inventory of your attack surface. Keep it on the LAN.
+Nothing from env var values is written out except a port number or the container name that
+matched. URLs in config files are reduced to host and port, and any `user:password@` part is
+dropped. `generate` warns if an edge label looks like it carries a credential. The output is
+still a list of your attack surface, so keep it on the LAN.
 
-## Known limits
+## What it doesn't do
 
-- Ports of host-network containers must be listed by hand (`host_net_ports`).
-- Traefik routers from the file provider are invisible (they are not on any container).
-- Links stored only in application databases (the *arr apps' download clients, Grafana
-  datasources added in the UI) are not found. Provisioning files are.
-- Ingress targets that are not containers (another machine) show as LAN hosts.
+- Ports of host-network containers have to be listed by hand (`host_net_ports`).
+- Traefik routers from the file provider aren't found, since they're not on any container.
+- Links that only live in an application's database (the *arr apps' download clients, Grafana
+  datasources added in the UI) aren't found either. Provisioning files are.
+- Ingress targets that aren't containers (another machine) show up as LAN hosts.
 
 ## Development
 
