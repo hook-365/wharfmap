@@ -30,6 +30,10 @@ public_suffixes = [".example.com"]
 api_url = "https://10.0.0.10:81"   # optional; needs NPM_EMAIL/NPM_PASSWORD or NPM_TOKEN in the environment
 api_verify_tls = false                 # NPMPlus serves its own cert on :81
 
+[homepage]
+# config_dir = "/opt/stacks/monitoring/homepage/config"   # auto-detected from the Homepage container's /app/config mount; "none" = off.
+# With it, [zones] below is optional: Homepage's layout order becomes the zone order and each group its own zone.
+
 [zones]
 order = ["Edge & infrastructure", "Sites & hosting", "Home & IoT", "Media & downloads", "Radio & aircraft", "AI & voice", "Ops & monitoring"]
 [zones.groups]

@@ -6,7 +6,7 @@ import json
 import pathlib
 import re
 
-from . import ingress, refs
+from . import homepage, ingress, refs
 from .config import Config
 from .discover import discover
 
@@ -20,8 +20,17 @@ DEFAULT_ZONE_ORDER = ["Edge & infrastructure", "Sites & hosting", "Home & IoT", 
 
 def build(cfg: Config) -> dict:
     g = discover(cfg)
+    hp = homepage.apply(g) if cfg.homepage_config_dir != "none" else {"groups": []}
     ingress.collect(g)
     refs.collect(g)
+    # zone order: wharfmap.toml wins; otherwise Homepage's layout order (one zone per group); otherwise the default
+    if cfg.zone_order:
+        order = cfg.zone_order
+    elif hp["groups"]:
+        order = [cfg.zone_of_group.get(x, x) for x in hp["groups"]]
+        order = [z for i, z in enumerate(order) if z not in order[:i]]
+    else:
+        order = DEFAULT_ZONE_ORDER
 
     lan_ips = {e["target"][4:] for e in g.edges if e["target"].startswith("lan:")}
     lan_hosts = {ip: {"label": g.lan_labels.get(ip, ip), "kind": g.lan_kind.get(ip, "host")} for ip in sorted(lan_ips)}
@@ -37,7 +46,7 @@ def build(cfg: Config) -> dict:
         "generated": datetime.datetime.now().astimezone().isoformat(timespec="minutes"),
         "title": cfg.title,
         "host": {"name": cfg.host_name, "ip": cfg.host_ip},
-        "zones": {"order": cfg.zone_order or DEFAULT_ZONE_ORDER, "groups": cfg.zone_of_group},
+        "zones": {"order": order, "groups": cfg.zone_of_group},
         "links": cfg.links,
         "refresh": cfg.refresh_seconds,
         "containers": containers,

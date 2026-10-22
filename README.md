@@ -88,6 +88,13 @@ behind a profile, or that you commented out and forgot. They show as dotted "not
 chips when stopped containers are switched on. Set `ghosts = false` to skip this, and note
 that in a container it only works for compose files you've mounted.
 
+If you run [Homepage](https://gethomepage.dev), its config is used for context too, so you
+don't describe your lab twice: the group order in `settings.yaml` becomes the zone order when
+`[zones]` isn't set (and unmapped groups keep Homepage's order instead of landing in "Other"),
+and `services.yaml` entries fill in names, descriptions, links and groups for dashboards that
+don't use labels. The config dir is found through the Homepage container's `/app/config`
+mount; `[homepage] config_dir` overrides it, `"none"` turns it off.
+
 `wharfmap doctor` prints what it decided and why, line by line, and the handful of things it
 couldn't work out. On the lab this was built on, that turned a 60-line config into a one-line
 port override and a public-domain suffix. Additions to the table are the easiest pull request
@@ -125,7 +132,10 @@ api_url = "https://127.0.0.1:81"   # optional: the NPM API, for cert expiry and 
 api_verify_tls = false         # NPM's :81 usually has a self-signed cert
 public_suffixes = [".example.com"]
 
-[zones]                        # page bands, mapped from homepage.group / wharfmap.group labels
+[homepage]
+# config_dir = "/opt/stacks/monitoring/homepage/config"   # auto-detected from the Homepage container; "none" to ignore
+
+[zones]                        # page bands; omit and Homepage's layout order is used as-is
 order = ["Edge & infrastructure", "Media", "Home & IoT", "Ops"]
 [zones.groups]
 "Security Services" = "Edge & infrastructure"

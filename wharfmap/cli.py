@@ -34,7 +34,8 @@ def cmd_generate(args) -> int:
     cfg = _cfg(args)
     graph = build.build(cfg)
     out = build.write(cfg, graph)
-    print(f"{len(graph['containers'])} containers, {len(graph['networks'])} networks, "
+    live = sum(1 for c in graph["containers"] if not c.get("ghost"))
+    print(f"{live} containers, {len(graph['networks'])} networks, "
           f"{len(graph['ingress'])} proxy hosts, {len(graph['edges'])} edges -> {out / 'index.html'}")
     for h in build.secret_scan(graph):
         print("WARNING possible credential in output:", h, file=sys.stderr)
@@ -95,14 +96,19 @@ def cmd_render(args) -> int:
 
 def cmd_doctor(args) -> int:
     """What discovery could and could not work out, and the few lines of config that would fix it."""
-    from . import ingress, refs
-    from .build import DEFAULT_ZONE_ORDER
+    from . import homepage, ingress, refs
     from .discover import discover
     cfg = _cfg(args)
     g = discover(cfg)
+    hp = homepage.apply(g) if cfg.homepage_config_dir != "none" else {"groups": [], "services": 0, "dir": None}
     ingress.collect(g)
     refs.collect(g)
     out = []
+    if hp.get("dir"):
+        out.append(f"Homepage config at {hp['dir']}: {len(hp['groups'])} groups in layout order"
+                   + (" (used as zone order since [zones] order is not set)" if not cfg.zone_order else " ([zones] order in wharfmap.toml wins)")
+                   + f", {hp['services']} services.yaml entries matched to containers")
+        out.append("")
     hn = [c for c in g.containers if c["hostnet"]]
     if hn:
         out.append("Host-network containers (Docker can't see their ports; source -> ports):")
@@ -131,7 +137,7 @@ def cmd_doctor(args) -> int:
         for d, u in unresolved:
             out.append(f"  {d:40} -> {u}")
     groups = sorted({c["group"] for c in g.containers if c["group"] and c["group"] not in cfg.zone_of_group})
-    if groups:
+    if groups and not hp.get("groups"):
         out.append("")
         out.append('Label groups not mapped to a zone (they land in "Other"; add them under [zones.groups]):')
         out += [f"  {x}" for x in groups]

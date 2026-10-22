@@ -216,7 +216,7 @@ const stacks=[...new Set(C.map(c=>c.stack))].sort();
 const ZONE_OF_GROUP=DATA.zones.groups||{};
 const ZONE_ORDER=[...(DATA.zones.order||[]),'Other'].filter((z,i,a)=>a.indexOf(z)===i);
 const zoneOfStack={};
-for(const st of stacks){const cnt={};for(const c of C)if(c.stack===st&&c.group){const z=ZONE_OF_GROUP[c.group]||'Other';cnt[z]=(cnt[z]||0)+1;}
+for(const st of stacks){const cnt={};for(const c of C)if(c.stack===st&&c.group){const z=ZONE_OF_GROUP[c.group]||(ZONE_ORDER.includes(c.group)?c.group:'Other');cnt[z]=(cnt[z]||0)+1;}
   zoneOfStack[st]=Object.entries(cnt).sort((a,b)=>b[1]-a[1])[0]?.[0]||'Other';}
 
 // ---- derived lookups ----
@@ -273,7 +273,7 @@ function applyFilters(){
   stats(); drawWires();
 }
 function stats(){
-  const vis=$$('.card .node:not(.off)').filter(n=>!n.closest('.off')).length, ghosts=C.filter(c=>c.ghost).length;
+  const vis=$$('.card .node:not(.off):not([data-ghost="1"])').filter(n=>!n.closest('.off')).length, ghosts=C.filter(c=>c.ghost).length;
   const certs=DATA.ingress.filter(h=>h.cert), warn=certs.filter(h=>h.cert.warn).length, dis=DATA.ingress.filter(h=>h.enabled===false).length;
   $('#stats').innerHTML=`<b>${vis}</b>/${C.length-ghosts} containers${ghosts?` (+${ghosts} not created)`:''} · <b>${stacks.length}</b> stacks · <b>${DATA.ingress.length}</b> proxy hosts${dis?` (<b>${dis}</b> disabled)`:''} · <b>${DATA.networks.length}</b> networks · <b>${DATA.edges.length}</b> edges${certs.length?`<br><b>${certs.length}</b> certs · <b style="color:${warn?'var(--bad)':'inherit'}">${warn}</b> need renewal`:''}`;
 }
