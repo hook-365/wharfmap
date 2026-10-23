@@ -30,6 +30,11 @@ jobs:
           docker build -q -t wharfmap:ci .
           docker run --rm wharfmap:ci --help | grep -q serve
           docker run --rm -v /var/run/docker.sock:/var/run/docker.sock:ro wharfmap:ci generate -o /tmp/img | grep -qi container
+          # `command: serve` alone must listen on all interfaces inside the container (reported in #1)
+          docker run -d --name ci-serve -p 127.0.0.1:3998:3008 -v /var/run/docker.sock:/var/run/docker.sock:ro wharfmap:ci serve
+          for i in $(seq 1 30); do curl -sf -o /dev/null http://127.0.0.1:3998/graph.json && break; sleep 1; done
+          curl -sf http://127.0.0.1:3998/graph.json | grep -q '"containers"'
+          docker rm -f ci-serve
           # a bind-mounted config that does not exist on the host becomes a directory: ignored when implicit, explained when explicit
           mkdir -p /tmp/nottoml
           docker run --rm -v /var/run/docker.sock:/var/run/docker.sock:ro -v /tmp/nottoml:/app/wharfmap.toml:ro wharfmap:ci generate -o /tmp/y | grep -qi container

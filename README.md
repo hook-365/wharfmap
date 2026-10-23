@@ -80,7 +80,7 @@ never connects back to any host, so nothing on the other machines has to be expo
 services:
   wharfmap:
     image: ghcr.io/hook-365/wharfmap:latest
-    ports: ["127.0.0.1:3008:3008"]
+    ports: ["3008:3008"]                           # agents on other hosts need to reach this
     environment:
       WHARFMAP_TOKEN: pick-a-long-random-string      # a `$` in the token must be written `$$` in compose
     volumes:

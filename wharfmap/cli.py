@@ -34,8 +34,9 @@ def _cfg(args) -> config.Config:
     if path is None and pathlib.Path("wharfmap.toml").is_file():
         path = "wharfmap.toml"
     cfg = config.load(path)
-    if args.out:
-        cfg.output_dir = pathlib.Path(args.out)
+    out = getattr(args, "out", None) or os.environ.get("WHARFMAP_OUT")
+    if out:
+        cfg.output_dir = pathlib.Path(out)
     return cfg
 
 
@@ -336,8 +337,9 @@ def main(argv=None) -> int:
     common.add_argument("-o", "--out", dest="out", default=argparse.SUPPRESS)
     sub.add_parser("generate", parents=[common], help="write graph.json + index.html").set_defaults(fn=cmd_generate)
     s = sub.add_parser("serve", parents=[common], help="generate and serve the output directory")
-    s.add_argument("--bind", default="127.0.0.1")
-    s.add_argument("--port", type=int, default=3008)
+    # The image sets WHARFMAP_BIND=0.0.0.0 and WHARFMAP_OUT=/out, so a bare `command: serve` works in a container.
+    s.add_argument("--bind", default=os.environ.get("WHARFMAP_BIND", "127.0.0.1"))
+    s.add_argument("--port", type=int, default=int(os.environ.get("WHARFMAP_PORT", "3008")))
     s.add_argument("--every", type=int, default=None, help="regenerate every N seconds; overrides [output] every (default 300, 0 = only on POST /regenerate)")
     s.set_defaults(fn=cmd_serve)
     a = sub.add_parser("agent", parents=[common], help="discover this host and POST the graph to a wharfmap server (agent mode)")
