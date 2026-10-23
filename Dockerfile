@@ -8,4 +8,6 @@ VOLUME /out
 EXPOSE 3008
 # Mount the Docker socket (read-only is enough) and optionally your compose tree for config_refs.
 ENTRYPOINT ["wharfmap"]
-CMD ["serve", "--bind", "0.0.0.0", "--port", "3008", "-o", "/out"]   # interval comes from [output] every in wharfmap.toml (default 300 s) or --every
+# Interval comes from [output] every in wharfmap.toml (default 300 s) or --every.
+# Keep CMD on its own line: a trailing comment turns the JSON array into shell form.
+CMD ["serve", "--bind", "0.0.0.0", "--port", "3008", "-o", "/out"]

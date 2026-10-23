@@ -31,7 +31,7 @@ REPORT_EXPIRE = 24 * 3600   # a host that has not reported for a day is dropped 
 
 def _cfg(args) -> config.Config:
     path = args.config
-    if path is None and pathlib.Path("wharfmap.toml").exists():
+    if path is None and pathlib.Path("wharfmap.toml").is_file():
         path = "wharfmap.toml"
     cfg = config.load(path)
     if args.out:
@@ -332,8 +332,8 @@ def main(argv=None) -> int:
     ap.add_argument("-o", "--out", help="output directory (overrides config)")
     sub = ap.add_subparsers(dest="cmd", required=True)
     common = argparse.ArgumentParser(add_help=False)  # so flags work before or after the subcommand
-    common.add_argument("-c", "--config", dest="config")
-    common.add_argument("-o", "--out", dest="out")
+    common.add_argument("-c", "--config", dest="config", default=argparse.SUPPRESS)
+    common.add_argument("-o", "--out", dest="out", default=argparse.SUPPRESS)
     sub.add_parser("generate", parents=[common], help="write graph.json + index.html").set_defaults(fn=cmd_generate)
     s = sub.add_parser("serve", parents=[common], help="generate and serve the output directory")
     s.add_argument("--bind", default="127.0.0.1")

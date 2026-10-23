@@ -93,6 +93,10 @@ def load(path: str | pathlib.Path | None) -> Config:
     if not path:
         return cfg
     p = pathlib.Path(path)
+    if p.is_dir():
+        # Docker creates an empty directory when a bind-mounted file does not exist on the host.
+        raise SystemExit(f"{p} is a directory, not a config file. If it is a Docker bind mount, create the file "
+                         f"first (wharfmap init > wharfmap.toml) or remove that volume line; the file is optional.")
     if not p.exists():
         raise SystemExit(f"config not found: {p}")
     with p.open("rb") as f:

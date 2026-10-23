@@ -45,7 +45,8 @@ services:
     ports: ["127.0.0.1:3008:3008"]
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
-      - ./wharfmap.toml:/app/wharfmap.toml:ro
+      # optional; create the file first (wharfmap init, below) or Docker mounts an empty directory
+      # - ./wharfmap.toml:/app/wharfmap.toml:ro
 ```
 
 That serves the map on port 3008, regenerates every five minutes (`every` under `[output]`,
@@ -81,10 +82,10 @@ services:
     image: ghcr.io/hook-365/wharfmap:latest
     ports: ["127.0.0.1:3008:3008"]
     environment:
-      WHARFMAP_TOKEN: pick-a-long-random-string
+      WHARFMAP_TOKEN: pick-a-long-random-string      # a `$` in the token must be written `$$` in compose
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
-      - ./wharfmap.toml:/app/wharfmap.toml:ro
+      # - ./wharfmap.toml:/app/wharfmap.toml:ro     # optional, create it first (see below)
 
 # on every other host
 services:

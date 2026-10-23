@@ -25,3 +25,12 @@ jobs:
           assert all(c['id'].split('/')[0] in names for c in g['containers']), 'ids not host-prefixed'
           print('merged hosts:', names)
           EOF
+      - name: image default command
+        run: |
+          docker build -q -t wharfmap:ci .
+          docker run --rm wharfmap:ci --help | grep -q serve
+          docker run --rm -v /var/run/docker.sock:/var/run/docker.sock:ro wharfmap:ci generate -o /tmp/img | grep -qi container
+          # a bind-mounted config that does not exist on the host becomes a directory: ignored when implicit, explained when explicit
+          mkdir -p /tmp/nottoml
+          docker run --rm -v /var/run/docker.sock:/var/run/docker.sock:ro -v /tmp/nottoml:/app/wharfmap.toml:ro wharfmap:ci generate -o /tmp/y | grep -qi container
+          docker run --rm -v /tmp/nottoml:/app/wharfmap.toml:ro wharfmap:ci -c /app/wharfmap.toml generate -o /tmp/x 2>&1 | grep -q "is a directory, not a config file"
