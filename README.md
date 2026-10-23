@@ -95,8 +95,8 @@ services:
     environment:
       WHARFMAP_REPORT_URL: http://10.0.0.10:3008     # the server (or http://wharfmap.lan behind your proxy)
       WHARFMAP_TOKEN: pick-a-long-random-string      # same token
-      WHARFMAP_HOST: nas                             # how this host appears on the map
-      WHARFMAP_HOST_IP: 10.0.0.20                    # its LAN address, so references to it resolve
+      # WHARFMAP_HOST: nas                           # optional: defaults to the Docker host's name
+      # WHARFMAP_HOST_IP: 10.0.0.20                  # optional: the server learns it from the connection
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
 ```
@@ -109,9 +109,14 @@ resolves to the container listening on that port, so the wiring is drawn across 
 host that stops reporting is marked stale after three missed rounds and dropped after a day.
 The server refuses reports without the token and never accepts one claiming its own name.
 
+Neither side needs to be told who it is. A container's hostname is a random id and its default
+route is a Docker bridge, so Wharfmap asks the Docker daemon for the machine's name and lets
+the connection settle the addresses: an agent's IP is where its report came from, the server's
+is the address the agent used to reach it. `WHARFMAP_HOST` / `WHARFMAP_HOST_IP` (or `[host]` in
+a config file) override both when the guess is wrong, for instance behind a proxy.
+
 An agent can take a `wharfmap.toml` too (`[host]`, `[host_net_ports]`, `[lan_hosts]`, the
-same keys as the server; `[report] url` is the server). With a config file the two env vars
-for name and IP aren't needed. Ingress and Homepage config are read wherever those
+same keys as the server; `[report] url` is the server). Ingress and Homepage config are read wherever those
 containers run, so an NPM on a different host than the server is fine.
 
 ## What it works out without being told

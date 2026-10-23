@@ -80,7 +80,10 @@ button:hover,button:focus-visible{border-color:var(--accent);outline:none}
 .aux .node .host{margin-right:5px}
 .card[data-stale="1"]{border-style:dashed;opacity:.6}
 .card[data-stale="1"]>h3::after{content:"stale";font-weight:400;color:var(--bad)}
-#hostsBox label.row{font-family:var(--mono);font-size:12px} #hostsBox .host{margin-left:6px}
+#hostsBox label.row{font-family:var(--mono);font-size:12px;display:grid;grid-template-columns:auto 1fr;column-gap:8px}
+#hostsBox .sub{grid-column:2;font-size:11px;color:var(--muted);line-height:1.2}
+#stacks .hosthead{font:500 11px var(--mono);margin:8px 0 2px} #stacks .hosthead:first-child{margin-top:0}
+.legend{display:flex;flex-wrap:wrap;gap:5px 10px;align-items:center;line-height:1.5} .legend>span{white-space:nowrap}
 .chips{column-gap:8px;column-fill:balance}
 .chips>*{break-inside:avoid;margin:0 0 6px;width:180px;min-width:0}
 .node{display:block;background:var(--node);border:1.5px solid var(--node-line);border-radius:7px;padding:5px 8px 5px 24px;position:relative;cursor:pointer;text-align:left;font:inherit;color:var(--fg);box-sizing:border-box;width:100%}
@@ -169,11 +172,17 @@ body:not(.showdom) .b .dom{display:none}
     </div>
     <div>
       <h2>Legend</h2>
-      <div class="stat" style="line-height:1.7">
-        <span class="chip ok">●</span> running · <span class="chip" style="color:var(--warn)">●</span> unhealthy/starting · <span class="chip bad">●</span> stopped<br>
-        <span class="chip" style="border-style:double;border-width:3px">host network</span>
-        <span class="chip" style="border-color:var(--e-netns);color:var(--e-netns)">inside shared netns</span><br>
-        <span class="chip pub">public domain</span> <span class="chip" style="border-style:dashed">LAN-only domain</span> <span class="chip" style="border-color:var(--bad);color:var(--bad)">cert needs renewal</span> <span class="chip" style="border-color:var(--warn);color:var(--warn)">LAN-open port</span> <span class="chip" style="border-color:var(--e-env);color:var(--e-env)">docker network</span> (click → members)
+      <div class="stat legend">
+        <span><span class="chip ok">●</span> running</span>
+        <span><span class="chip" style="color:var(--warn)">●</span> unhealthy / starting</span>
+        <span><span class="chip bad">●</span> stopped</span>
+        <span><span class="chip" style="border-style:double;border-width:3px">host network</span></span>
+        <span><span class="chip" style="border-color:var(--e-netns);color:var(--e-netns)">shared netns</span></span>
+        <span><span class="chip pub">public domain</span></span>
+        <span><span class="chip" style="border-style:dashed">LAN-only domain</span></span>
+        <span><span class="chip" style="border-color:var(--bad);color:var(--bad)">cert needs renewal</span></span>
+        <span><span class="chip" style="border-color:var(--warn);color:var(--warn)">LAN-open port</span></span>
+        <span><span class="chip" style="border-color:var(--e-env);color:var(--e-env)">docker network</span> (click: members)</span>
       </div>
     </div>
     <div id="hostsBox" style="display:none">
@@ -226,7 +235,7 @@ const unhost=s=>MULTI?s.replace(/^[^/]+\//,''):s;
 const ago=iso=>{const m=Math.round((Date.now()-new Date(iso))/60000);return m<2?'just now':m<120?`${m} min ago`:`${Math.round(m/60)} h ago`;};
 $('#meta').textContent=MULTI?HOSTS.map(h=>`${h.name} ${h.ip}${h.stale?' (stale, '+ago(h.generated)+')':''}`).join(' · ')+` · generated ${DATA.generated.replace('T',' ').slice(0,16)}`
   :`${DATA.host.name} ${DATA.host.ip} · generated ${DATA.generated.replace('T',' ').slice(0,16)}`;
-if(MULTI){$('#hostsBox').style.display='';for(const h of HOSTS){const l=document.createElement('label');l.className='row';l.innerHTML=`<input type="checkbox" data-host="${esc(h.name)}" checked>${esc(h.name)} <span class="sub">${esc(h.ip)} · ${h.containers??''}</span> ${hostTag(h.name)}`;$('#hosts').appendChild(l);}}
+if(MULTI){$('#hostsBox').style.display='';for(const h of HOSTS){const l=document.createElement('label');l.className='row';l.innerHTML=`<input type="checkbox" data-host="${esc(h.name)}" checked>${hostTag(h.name)}<span class="sub">${esc(h.ip)} · ${h.containers??''} containers${h.stale?' · stale':''}</span>`;$('#hosts').appendChild(l);}}
 
 // ---- zones from homepage.group (majority per stack) ----
 const stacks=[...new Set(C.map(c=>c.stack))].sort();
@@ -272,7 +281,10 @@ html+=`<section class="zone" id="lanZone"><h2>LAN hosts &amp; devices</h2><div c
 $('#zones').innerHTML=html;
 const NODE=id=>document.querySelector(`.node[data-id="${CSS.escape(id)}"]`);
 const stackBox=$('#stacks');
-for(const s of stacks){const l=document.createElement('label');l.className='row';l.innerHTML=`<input type="checkbox" data-stack="${esc(s)}" checked>${esc(unhost(s))}${MULTI?' '+hostTag(hostOf(C.find(c=>c.stack===s))):''}`;stackBox.appendChild(l);}
+{const stackHost=s=>hostOf(C.find(c=>c.stack===s)), order=MULTI?HOSTS.map(h=>h.name):[null];
+for(const hn of order){const mine=stacks.filter(s=>!MULTI||stackHost(s)===hn);if(!mine.length)continue;
+  if(MULTI){const d=document.createElement('div');d.className='hosthead';d.innerHTML=hostTag(hn);stackBox.appendChild(d);}
+  for(const s of mine){const l=document.createElement('label');l.className='row';l.innerHTML=`<input type="checkbox" data-stack="${esc(s)}" checked>${esc(unhost(s))}`;stackBox.appendChild(l);}}}
 
 // ---- filters ----
 const kinds=()=>new Set($$('input[data-kind]:checked').map(i=>i.dataset.kind));

@@ -13,6 +13,7 @@ from __future__ import annotations
 import argparse
 import functools
 import hmac
+import ipaddress
 import http.server
 import json
 import os
@@ -50,6 +51,15 @@ def cmd_generate(args) -> int:
     for h in build.secret_scan(graph):
         print("WARNING possible credential in output:", h, file=sys.stderr)
     return 0
+
+
+def _lan_ip(s: str) -> bool:
+    """An IPv4 literal another machine could have used on the wire (not loopback, unspecified or link-local)."""
+    try:
+        ip = ipaddress.ip_address(s)
+    except ValueError:
+        return False
+    return ip.version == 4 and not ip.is_loopback and not ip.is_unspecified and not ip.is_link_local
 
 
 def cmd_serve(args) -> int:
@@ -101,11 +111,26 @@ def cmd_serve(args) -> int:
             return 400, "not a wharfmap graph.json"
         if name == merge.safe_name(cfg.host_name):
             return 409, f"a report named like this server's own host ({name}); give the agent WHARFMAP_HOST=<its name>"
+        # Inside a container neither side knows its LAN address, but the connection does: the agent's
+        # is where the report came from, ours is the address the agent used to reach us.
+        if g["host"].get("auto_ip"):
+            seen = (handler.headers.get("X-Forwarded-For", "").split(",")[0].strip() or handler.client_address[0])
+            if _lan_ip(seen) and seen != g["host"]["ip"]:
+                print(time.strftime("%H:%M:%S"), f"{name} guessed its ip as {g['host']['ip']}, using {seen} (where the report came from)", flush=True)
+                g["host"]["ip"] = seen
+        learned = False
+        if cfg.host_ip_auto:
+            mine = handler.headers.get("Host", "").rsplit(":", 1)[0].strip("[]")
+            if _lan_ip(mine) and mine != cfg.host_ip:
+                print(time.strftime("%H:%M:%S"), f"this host guessed its ip as {cfg.host_ip}, using {mine} (how {name} reached us)", flush=True)
+                cfg.host_ip, cfg.host_ip_auto, learned = mine, False, True
         g.setdefault("received", time.strftime("%Y-%m-%dT%H:%M:%S%z"))
         with lock:
             state["remotes"][name] = g
             hosts_dir.mkdir(parents=True, exist_ok=True)
             (hosts_dir / f"{name}.json").write_text(json.dumps(g))
+        if learned:
+            regen()
         if state["local"] is not None:
             publish()
         live = sum(1 for c in g["containers"] if not c.get("ghost"))
@@ -167,8 +192,8 @@ def cmd_agent(args) -> int:
         raise SystemExit("agent: WHARFMAP_TOKEN is not set (the same token the server was started with)")
     if not url.endswith("/report"):
         url += "/report"
-    if cfg.host_name == cfg.host_name.lower() and len(cfg.host_name) in (12, 64) and all(ch in "0123456789abcdef" for ch in cfg.host_name):
-        print(f"agent: host name {cfg.host_name!r} looks like a container id; set WHARFMAP_HOST (and WHARFMAP_HOST_IP)", file=sys.stderr)
+    if config.looks_like_container_id(cfg.host_name):
+        print(f"agent: host name {cfg.host_name!r} looks like a container id; set WHARFMAP_HOST", file=sys.stderr)
     every = cfg.refresh_seconds if args.every is None else args.every
 
     def report() -> bool:

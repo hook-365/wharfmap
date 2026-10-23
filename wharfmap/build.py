@@ -47,7 +47,7 @@ def build(cfg: Config) -> dict:
     return {
         "generated": generated,
         "title": cfg.title,
-        "host": {"name": cfg.host_name, "ip": cfg.host_ip},
+        "host": {"name": cfg.host_name, "ip": cfg.host_ip, "auto_ip": cfg.host_ip_auto},
         "hosts": [{"name": cfg.host_name, "ip": cfg.host_ip, "generated": generated, "local": True, "stale": False,
                    "containers": sum(1 for c in containers if not c.get("ghost"))}],
         "zones": {"order": order, "groups": cfg.zone_of_group},

@@ -14,6 +14,26 @@ import tomllib
 from dataclasses import dataclass, field
 
 
+def looks_like_container_id(name: str) -> bool:
+    return name == name.lower() and len(name) in (12, 64) and all(ch in "0123456789abcdef" for ch in name)
+
+
+def _default_host_name() -> str:
+    """The machine's hostname. Inside a container that is the container id, but the Docker daemon
+    knows the real one (`docker info` Name), so ask it before falling back."""
+    name = socket.gethostname()
+    if looks_like_container_id(name):
+        try:
+            import subprocess
+            real = subprocess.run(["docker", "info", "--format", "{{.Name}}"], capture_output=True, text=True,
+                                  timeout=10).stdout.strip()
+            if real and not looks_like_container_id(real):
+                return real
+        except (OSError, subprocess.SubprocessError):
+            pass
+    return name
+
+
 def _default_host_ip() -> str:
     """Best-effort LAN IP of this machine (the address other hosts use to reach it)."""
     try:
@@ -42,8 +62,9 @@ class ConfigRef:
 @dataclass
 class Config:
     title: str = "Wharfmap"
-    host_name: str = socket.gethostname()
+    host_name: str = field(default_factory=_default_host_name)
     host_ip: str = field(default_factory=_default_host_ip)
+    host_ip_auto: bool = True       # ip was guessed (inside a container that guess is a Docker bridge address)
     host_aliases: list[str] = field(default_factory=list)
     lan_cidrs: list[str] = field(default_factory=list)  # defaults to the /24 around host_ip
     output_dir: pathlib.Path = pathlib.Path("out")
@@ -104,7 +125,8 @@ def load(path: str | pathlib.Path | None) -> Config:
     cfg.title = raw.get("title", cfg.title)
     host = raw.get("host", {})
     cfg.host_name = host.get("name", cfg.host_name)
-    cfg.host_ip = host.get("ip", cfg.host_ip)
+    if "ip" in host:
+        cfg.host_ip, cfg.host_ip_auto = host["ip"], False
     cfg.host_aliases = list(host.get("aliases", []))
     cfg.lan_cidrs = list(host.get("lan_cidrs", []))
     cfg.output_dir = pathlib.Path(raw.get("output", {}).get("dir", cfg.output_dir))
@@ -138,6 +160,6 @@ def _env_overrides(cfg: Config) -> None:
     if os.environ.get("WHARFMAP_HOST"):
         cfg.host_name = os.environ["WHARFMAP_HOST"]
     if os.environ.get("WHARFMAP_HOST_IP"):
-        cfg.host_ip = os.environ["WHARFMAP_HOST_IP"]
+        cfg.host_ip, cfg.host_ip_auto = os.environ["WHARFMAP_HOST_IP"], False
     if os.environ.get("WHARFMAP_REPORT_URL"):
         cfg.report_url = os.environ["WHARFMAP_REPORT_URL"]
