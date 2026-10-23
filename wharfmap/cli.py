@@ -2,6 +2,8 @@
 
   wharfmap generate [-c wharfmap.toml] [-o out]      write out/graph.json + out/index.html
   wharfmap serve    [-c ...] [--port 3008] [--every N]     generate, then serve the output directory
+                                                     (also accepts POST /report from agents when WHARFMAP_TOKEN is set)
+  wharfmap agent    [-c ...] [--url http://server:3008]   discover this host and POST the graph to a server, forever
   wharfmap render -i graph.json [-o out]            index.html from a saved graph.json (no Docker needed)
   wharfmap doctor   [-c ...]                         what was discovered automatically and what still needs config
   wharfmap init                                      print a starter config built from this host
@@ -10,14 +12,21 @@ from __future__ import annotations
 
 import argparse
 import functools
+import hmac
 import http.server
 import json
+import os
 import pathlib
 import sys
 import threading
 import time
+import urllib.error
+import urllib.request
 
-from . import build, config
+from . import build, config, merge
+
+MAX_REPORT = 32 * 1024 * 1024
+REPORT_EXPIRE = 24 * 3600   # a host that has not reported for a day is dropped from the map
 
 
 def _cfg(args) -> config.Config:
@@ -44,13 +53,63 @@ def cmd_generate(args) -> int:
 
 def cmd_serve(args) -> int:
     cfg = _cfg(args)
+    token = os.environ.get("WHARFMAP_TOKEN", "")
+    hosts_dir = cfg.output_dir / "hosts"
+    lock = threading.Lock()
+    state = {"local": None, "remotes": {}}   # remotes: host name -> last reported graph
+    if hosts_dir.is_dir():                      # reports survive a restart
+        for f in hosts_dir.glob("*.json"):
+            try:
+                g = json.loads(f.read_text())
+                if merge.age_seconds(g.get("generated", "")) < REPORT_EXPIRE:
+                    state["remotes"][merge.safe_name(g["host"]["name"])] = g
+            except (ValueError, KeyError, OSError):
+                pass
+
+    def publish():
+        """Write the merged graph: this host plus every report that is less than a day old."""
+        with lock:
+            remotes = [g for g in state["remotes"].values() if merge.age_seconds(g.get("generated", "")) < REPORT_EXPIRE]
+            build.write(cfg, merge.merge(state["local"], remotes))
 
     def regen():
         try:
-            build.write(cfg, build.build(cfg))
-            print(time.strftime("%H:%M:%S"), "regenerated", flush=True)
+            local = build.build(cfg)
+            with lock:
+                state["local"] = local
+            publish()
+            n = len(state["remotes"])
+            print(time.strftime("%H:%M:%S"), "regenerated" + (f" (+{n} remote host{'s'[:n^1]})" if n else ""), flush=True)
         except Exception as e:  # keep serving the last good copy
             print("regenerate failed:", e, file=sys.stderr, flush=True)
+
+    def accept_report(handler) -> tuple[int, str]:
+        if not token:
+            return 403, "this server has no WHARFMAP_TOKEN set, so it does not accept reports"
+        auth = handler.headers.get("Authorization", "")
+        if not (auth.startswith("Bearer ") and hmac.compare_digest(auth[7:], token)):
+            return 401, "bad token"
+        length = int(handler.headers.get("Content-Length") or 0)
+        if not 0 < length <= MAX_REPORT:
+            return 413, "report too large or empty"
+        try:
+            g = json.loads(handler.rfile.read(length))
+            name = merge.safe_name(g["host"]["name"])
+            assert isinstance(g["containers"], list) and isinstance(g["edges"], list) and isinstance(g["networks"], list)
+        except (ValueError, KeyError, TypeError, AssertionError):
+            return 400, "not a wharfmap graph.json"
+        if name == merge.safe_name(cfg.host_name):
+            return 409, f"a report named like this server's own host ({name}); give the agent WHARFMAP_HOST=<its name>"
+        g.setdefault("received", time.strftime("%Y-%m-%dT%H:%M:%S%z"))
+        with lock:
+            state["remotes"][name] = g
+            hosts_dir.mkdir(parents=True, exist_ok=True)
+            (hosts_dir / f"{name}.json").write_text(json.dumps(g))
+        if state["local"] is not None:
+            publish()
+        live = sum(1 for c in g["containers"] if not c.get("ghost"))
+        print(time.strftime("%H:%M:%S"), f"report from {name} ({g['host'].get('ip', '?')}): {live} containers", flush=True)
+        return 204, ""
 
     every = cfg.refresh_seconds if args.every is None else args.every
     regen()
@@ -63,10 +122,22 @@ def cmd_serve(args) -> int:
 
     class Handler(http.server.SimpleHTTPRequestHandler):
         def do_POST(self):
-            if self.path.rstrip("/") == "/regenerate":
+            path = self.path.rstrip("/")
+            if path == "/regenerate":
                 regen()
                 self.send_response(204)
                 self.end_headers()
+            elif path == "/report":
+                code, msg = accept_report(self)
+                self.send_response(code)
+                if code != 204:
+                    body = (msg + "\n").encode()
+                    self.send_header("Content-Type", "text/plain")
+                    self.send_header("Content-Length", str(len(body)))
+                    self.end_headers()
+                    self.wfile.write(body)
+                else:
+                    self.end_headers()
             else:
                 self.send_error(404)
 
@@ -75,12 +146,62 @@ def cmd_serve(args) -> int:
 
     handler = functools.partial(Handler, directory=str(cfg.output_dir))
     srv = http.server.ThreadingHTTPServer((args.bind, args.port), handler)
-    print(f"serving {cfg.output_dir} on http://{args.bind}:{args.port}  (regenerate every {every} s" + ("" if every else " = only on POST /regenerate") + ")", flush=True)
+    print(f"serving {cfg.output_dir} on http://{args.bind}:{args.port}  (regenerate every {every} s" + ("" if every else " = only on POST /regenerate") + ")"
+          + ("; accepting agent reports on POST /report" if token else "; set WHARFMAP_TOKEN to accept agent reports"), flush=True)
     try:
         srv.serve_forever()
     except KeyboardInterrupt:
         pass
     return 0
+
+
+def cmd_agent(args) -> int:
+    """Discover this host and hand the graph to a server running `wharfmap serve` elsewhere."""
+    cfg = _cfg(args)
+    url = (args.url or cfg.report_url).rstrip("/")
+    token = os.environ.get("WHARFMAP_TOKEN", "")
+    if not url:
+        raise SystemExit("agent: tell me where to report: --url, [report] url in wharfmap.toml, or WHARFMAP_REPORT_URL")
+    if not token:
+        raise SystemExit("agent: WHARFMAP_TOKEN is not set (the same token the server was started with)")
+    if not url.endswith("/report"):
+        url += "/report"
+    if cfg.host_name == cfg.host_name.lower() and len(cfg.host_name) in (12, 64) and all(ch in "0123456789abcdef" for ch in cfg.host_name):
+        print(f"agent: host name {cfg.host_name!r} looks like a container id; set WHARFMAP_HOST (and WHARFMAP_HOST_IP)", file=sys.stderr)
+    every = cfg.refresh_seconds if args.every is None else args.every
+
+    def report() -> bool:
+        graph = build.build(cfg)
+        if args.out:
+            build.write(cfg, graph)
+        body = json.dumps(graph).encode()
+        req = urllib.request.Request(url, data=body, method="POST",
+                                     headers={"Content-Type": "application/json", "Authorization": "Bearer " + token})
+        try:
+            with urllib.request.urlopen(req, timeout=30) as r:
+                r.read()
+            live = sum(1 for c in graph["containers"] if not c.get("ghost"))
+            print(time.strftime("%H:%M:%S"), f"reported {live} containers as {cfg.host_name} ({cfg.host_ip}) to {url}", flush=True)
+            return True
+        except urllib.error.HTTPError as e:
+            print(time.strftime("%H:%M:%S"), f"server refused the report: {e.code} {e.read().decode(errors='replace').strip()[:200]}", file=sys.stderr, flush=True)
+        except (urllib.error.URLError, OSError) as e:
+            print(time.strftime("%H:%M:%S"), f"could not reach {url}: {e}", file=sys.stderr, flush=True)
+        return False
+
+    def attempt() -> bool:
+        try:
+            return report()
+        except Exception as e:  # Docker not up yet, socket missing, ...: log and try again next round
+            print(time.strftime("%H:%M:%S"), "discovery failed:", str(e).strip()[:300], file=sys.stderr, flush=True)
+            return False
+
+    ok = attempt()
+    if args.once:
+        return 0 if ok else 1
+    while True:
+        time.sleep(max(30, every))
+        attempt()
 
 
 def cmd_render(args) -> int:
@@ -219,6 +340,11 @@ def main(argv=None) -> int:
     s.add_argument("--port", type=int, default=3008)
     s.add_argument("--every", type=int, default=None, help="regenerate every N seconds; overrides [output] every (default 300, 0 = only on POST /regenerate)")
     s.set_defaults(fn=cmd_serve)
+    a = sub.add_parser("agent", parents=[common], help="discover this host and POST the graph to a wharfmap server (agent mode)")
+    a.add_argument("--url", default="", help="the server, e.g. http://wharfmap.lan or http://10.0.0.10:3008 (or [report] url / WHARFMAP_REPORT_URL)")
+    a.add_argument("--every", type=int, default=None, help="report every N seconds (default: [output] every, 300; minimum 30)")
+    a.add_argument("--once", action="store_true", help="report once and exit (exit 1 if the server did not take it)")
+    a.set_defaults(fn=cmd_agent)
     r = sub.add_parser("render", parents=[common], help="render index.html from an existing graph.json (no Docker needed)")
     r.add_argument("-i", "--input", required=True, help="graph.json to render")
     r.set_defaults(fn=cmd_render)

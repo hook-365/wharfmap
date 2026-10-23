@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "wharfmap"
-version = "0.1.3"
+version = "0.2.0"
 description = "Chart a Docker host: containers, networks, ports, proxy domains and the wiring between them, discovered live."
 readme = "README.md"
 license = {text = "MIT"}

@@ -66,6 +66,53 @@ One thing to know before you expose it: the page is a complete list of your port
 behind them. Keep it on the LAN, behind whatever allow-list your proxy has. It binds to
 localhost by default for that reason.
 
+## More than one Docker host
+
+Run `wharfmap serve` on one host (the one with your reverse proxy is the natural pick) and
+`wharfmap agent` on each of the others. An agent discovers its own host exactly as `serve`
+would, then POSTs the finished graph to the server, which merges them into one map. Only the
+graph crosses the network, with env values already reduced to names and ports, and the server
+never connects back to any host, so nothing on the other machines has to be exposed.
+
+```yaml
+# on the server host
+services:
+  wharfmap:
+    image: ghcr.io/hook-365/wharfmap:latest
+    ports: ["127.0.0.1:3008:3008"]
+    environment:
+      WHARFMAP_TOKEN: pick-a-long-random-string
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - ./wharfmap.toml:/app/wharfmap.toml:ro
+
+# on every other host
+services:
+  wharfmap-agent:
+    image: ghcr.io/hook-365/wharfmap:latest
+    command: agent
+    environment:
+      WHARFMAP_REPORT_URL: http://10.0.0.10:3008     # the server (or http://wharfmap.lan behind your proxy)
+      WHARFMAP_TOKEN: pick-a-long-random-string      # same token
+      WHARFMAP_HOST: nas                             # how this host appears on the map
+      WHARFMAP_HOST_IP: 10.0.0.20                    # its LAN address, so references to it resolve
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+```
+
+The agent reports every five minutes (`[output] every` or `--every`). Containers from other
+hosts get a host tag on their stack card and a Hosts filter in the sidebar; ids become
+`nas/redis` so two hosts can both have a `redis`. A reference from one host to another
+host's IP and port (`SONARR_URL=http://10.0.0.20:8989`, or a proxy host forwarding there)
+resolves to the container listening on that port, so the wiring is drawn across hosts. A
+host that stops reporting is marked stale after three missed rounds and dropped after a day.
+The server refuses reports without the token and never accepts one claiming its own name.
+
+An agent can take a `wharfmap.toml` too (`[host]`, `[host_net_ports]`, `[lan_hosts]`, the
+same keys as the server; `[report] url` is the server). With a config file the two env vars
+for name and IP aren't needed. Ingress and Homepage config are read wherever those
+containers run, so an NPM on a different host than the server is fine.
+
 ## What it works out without being told
 
 Two things Docker genuinely doesn't know are the listen ports of `network_mode: host`

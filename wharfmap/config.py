@@ -7,6 +7,7 @@ what is a matter of taste (zones, public domain suffixes, extra config-file pars
 from __future__ import annotations
 
 import ipaddress
+import os
 import pathlib
 import socket
 import tomllib
@@ -64,6 +65,7 @@ class Config:
     credit: bool = True             # the small "GitHub" link to the Wharfmap project in the header; credit = false hides it
     links: dict[str, str] = field(default_factory=dict)  # footer links, e.g. "buy me coffee" = "https://buymeacoffee.com/you"
     env_skip_keys: list[str] = field(default_factory=lambda: ["PATH", "HOME", "PUID", "PGID", "TZ"])
+    report_url: str = ""            # agent: the server to POST this host's graph to (also WHARFMAP_REPORT_URL); token from WHARFMAP_TOKEN
 
     # ---- derived helpers ----
     def host_names(self) -> set[str]:
@@ -87,6 +89,7 @@ class Config:
 
 def load(path: str | pathlib.Path | None) -> Config:
     cfg = Config()
+    _env_overrides(cfg)
     if not path:
         return cfg
     p = pathlib.Path(path)
@@ -121,4 +124,16 @@ def load(path: str | pathlib.Path | None) -> Config:
     cfg.links = {str(k): str(v) for k, v in raw.get("links", {}).items()}
     cfg.credit = bool(raw.get("credit", cfg.credit))
     cfg.env_skip_keys = list(raw.get("env", {}).get("skip_keys", cfg.env_skip_keys))
+    cfg.report_url = str(raw.get("report", {}).get("url", cfg.report_url))
     return cfg
+
+
+def _env_overrides(cfg: Config) -> None:
+    """Inside a container the hostname is a random id and the default route is a Docker bridge, so an
+    agent with no config file needs WHARFMAP_HOST / WHARFMAP_HOST_IP. A wharfmap.toml [host] still wins."""
+    if os.environ.get("WHARFMAP_HOST"):
+        cfg.host_name = os.environ["WHARFMAP_HOST"]
+    if os.environ.get("WHARFMAP_HOST_IP"):
+        cfg.host_ip = os.environ["WHARFMAP_HOST_IP"]
+    if os.environ.get("WHARFMAP_REPORT_URL"):
+        cfg.report_url = os.environ["WHARFMAP_REPORT_URL"]

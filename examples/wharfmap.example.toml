@@ -53,6 +53,9 @@ order = ["Edge & infrastructure", "Sites & hosting", "Home & IoT", "Media & down
 "Collaboration" = "Sites & hosting"
 
 # Header links are optional: drop this table for none. `credit = false` (top level) also hides the project's GitHub link.
+[report]                       # agent mode: `wharfmap agent` on another host posts its graph here
+# url = "http://10.0.0.10:3008"  # the server; the shared token comes from the WHARFMAP_TOKEN environment variable
+
 [links]
 "buy me coffee" = "https://buymeacoffee.com/you"
 

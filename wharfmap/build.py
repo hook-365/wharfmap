@@ -40,12 +40,16 @@ def build(cfg: Config) -> dict:
         n = dict(n)
         for k in ("env", "exposed", "labels", "mounts", "pid", "compose_files"):
             n.pop(k, None)
+        n["host"] = cfg.host_name
         containers.append(n)
 
+    generated = datetime.datetime.now().astimezone().isoformat(timespec="seconds")
     return {
-        "generated": datetime.datetime.now().astimezone().isoformat(timespec="minutes"),
+        "generated": generated,
         "title": cfg.title,
         "host": {"name": cfg.host_name, "ip": cfg.host_ip},
+        "hosts": [{"name": cfg.host_name, "ip": cfg.host_ip, "generated": generated, "local": True, "stale": False,
+                   "containers": sum(1 for c in containers if not c.get("ghost"))}],
         "zones": {"order": order, "groups": cfg.zone_of_group},
         "links": cfg.links,
         "credit": cfg.credit,

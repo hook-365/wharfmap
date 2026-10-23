@@ -13,3 +13,15 @@ jobs:
       - run: python -m wharfmap render -i examples/demo/graph.json -o /tmp/out
       - run: python -m wharfmap generate -o /tmp/live   # the runner has Docker with a few containers; proves discovery runs end to end
       - run: test -s /tmp/out/index.html && test -s /tmp/live/graph.json
+      - name: agent mode round trip
+        run: |
+          WHARFMAP_TOKEN=ci python -m wharfmap serve -o /tmp/srv --port 3999 --every 0 &
+          for i in $(seq 1 30); do curl -sf -o /dev/null http://127.0.0.1:3999/graph.json && break; sleep 1; done
+          WHARFMAP_TOKEN=ci WHARFMAP_HOST=other WHARFMAP_HOST_IP=10.9.9.9 python -m wharfmap agent --url http://127.0.0.1:3999 --once
+          ! WHARFMAP_TOKEN=wrong WHARFMAP_HOST=other python -m wharfmap agent --url http://127.0.0.1:3999 --once
+          python - <<'EOF'
+          import json; g = json.load(open('/tmp/srv/graph.json'))
+          names = sorted(h['name'] for h in g['hosts']); assert 'other' in names and len(names) == 2, names
+          assert all(c['id'].split('/')[0] in names for c in g['containers']), 'ids not host-prefixed'
+          print('merged hosts:', names)
+          EOF

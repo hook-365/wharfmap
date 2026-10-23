@@ -12,5 +12,21 @@ services:
       - wharfmap-out:/out
     security_opt:
       - no-new-privileges:true
+  # ---- agent mode: run this on every OTHER Docker host instead of the service above ----
+  # wharfmap-agent:
+  #   image: ghcr.io/hook-365/wharfmap:latest
+  #   container_name: wharfmap-agent
+  #   restart: unless-stopped
+  #   command: agent
+  #   environment:
+  #     WHARFMAP_REPORT_URL: http://10.0.0.10:3008   # the host running `serve` (set WHARFMAP_TOKEN there too)
+  #     WHARFMAP_TOKEN: pick-a-long-random-string
+  #     WHARFMAP_HOST: nas                           # name on the map
+  #     WHARFMAP_HOST_IP: 10.0.0.20                  # this host's LAN address
+  #   volumes:
+  #     - /var/run/docker.sock:/var/run/docker.sock:ro
+  #   security_opt:
+  #     - no-new-privileges:true
+
 volumes:
   wharfmap-out:

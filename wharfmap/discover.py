@@ -38,14 +38,17 @@ class Graph:
     _seen: set = field(default_factory=set)
 
     # ---- edges ----
-    def edge(self, src: str | None, dst: str | None, kind: str, label: str = "") -> None:
+    def edge(self, src: str | None, dst: str | None, kind: str, label: str = "", port: int | None = None) -> None:
         if not src or not dst or src == dst:
             return
         key = (src, dst, kind, label)
         if key in self._seen:
             return
         self._seen.add(key)
-        self.edges.append({"source": src, "target": dst, "kind": kind, "label": label})
+        e = {"source": src, "target": dst, "kind": kind, "label": label}
+        if port and dst.startswith("lan:"):
+            e["port"] = int(port)  # lets agent mode resolve "lan:<other host>" to the container on that port
+        self.edges.append(e)
 
     def resolve(self, host: str | None, port: int | str | None = None) -> str | None:
         """Map a host[:port] reference to a node id: a container, or `lan:<ip>` for another LAN machine."""
@@ -66,7 +69,7 @@ class Graph:
         if t and t != src:
             if t.startswith("lan:"):
                 self.lan_kind.setdefault(t[4:], lan_kind)
-            self.edge(src, t, kind, label)
+            self.edge(src, t, kind, label, port=int(port) if str(port or "").isdigit() else None)
 
 
 def _label(labels: dict, key: str) -> str | None:
@@ -350,12 +353,12 @@ def _env_edges(g: Graph) -> None:
     hosts = sorted((re.escape(h) for h in cfg.host_names()), key=len, reverse=True)
     hp_re = re.compile(r"(?:" + "|".join(hosts) + r")[:/]+(\d{2,5})")
     keyish_re = re.compile(r"HOST|URL|ADDR|ENDPOINT|SERVER|BROKER|URI|DSN|FEED|TARGET|UPSTREAM|API", re.I)
-    ip_re = re.compile(r"\b(?:\d{1,3}\.){3}\d{1,3}\b")
+    ip_re = re.compile(r"\b((?:\d{1,3}\.){3}\d{1,3})(?::(\d{2,5}))?\b")
     local = set()  # one edge per (container, target, env key) however it was matched
-    def add(src, dst, k, label):
+    def add(src, dst, k, label, port=None):
         if dst and (src, dst, k) not in local:
             local.add((src, dst, k))
-            g.edge(src, dst, "env", label)
+            g.edge(src, dst, "env", label, port=port)
     for n in g.containers:
         for e in n["env"]:
             k, _, v = e.partition("=")
@@ -373,6 +376,6 @@ def _env_edges(g: Graph) -> None:
                     sibs = [s for s in g.containers if s["netns"] == n["netns"] or s["id"] == n["netns"]]
                     t = next((s["id"] for s in sibs if port in s["exposed"]), None)
                 add(n["id"], t or g.hostport.get(port), k, f"{k} :{port}")
-            for ip in ip_re.findall(v):
+            for ip, port in ip_re.findall(v):
                 if cfg.is_lan_ip(ip):
-                    add(n["id"], "lan:" + ip, k, k)
+                    add(n["id"], "lan:" + ip, k, k, int(port) if port else None)
