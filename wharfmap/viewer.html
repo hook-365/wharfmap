@@ -39,7 +39,7 @@ header .meta{color:var(--muted);font-family:var(--mono);font-size:12px}
 header input{background:var(--bg);border:1px solid var(--line);color:var(--fg);border-radius:6px;padding:6px 10px;font:inherit;min-width:220px}
 main{flex:1;display:grid;grid-template-columns:210px 1fr 0;min-height:0;transition:grid-template-columns .15s}
 main.open{grid-template-columns:210px 1fr 340px}
-aside{background:var(--panel);border-right:1px solid var(--line);padding:12px 14px;overflow-y:auto;display:flex;flex-direction:column;gap:14px}
+aside{background:var(--panel);border-right:1px solid var(--line);padding:12px 14px;overflow:hidden auto;display:flex;flex-direction:column;gap:14px}
 #detail{border-right:0;border-left:1px solid var(--line);font-size:13px;overflow:hidden auto}
 #detail .close{float:right;padding:2px 8px}
 h2{font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);margin:0 0 6px;font-weight:600}
@@ -126,6 +126,8 @@ body:not(.showdom) .b .dom{display:none}
 .iso .card:not(.keep),.iso .zone:not(.keep){display:none}
 .off{display:none!important}
 .hint{font-size:11px;color:var(--muted);margin-top:auto}
+.ver{font-family:var(--mono);font-size:11px;color:var(--muted)} .ver a{color:inherit;text-decoration:none} .ver a:hover{color:var(--accent)}
+.stat.grid{display:grid;grid-template-columns:max-content 1fr;gap:0 8px;align-items:baseline} .stat.grid b{text-align:right}
 .foot{display:flex;flex-wrap:wrap;gap:6px;font-size:12px;align-items:center;margin-left:auto}
 .foot a{display:inline-flex;align-items:center;gap:5px;padding:5px 10px;border:1px solid var(--line);border-radius:12px;color:var(--muted);text-decoration:none;background:var(--bg)}
 .foot a:hover{color:var(--fg);border-color:var(--accent)}
@@ -182,7 +184,7 @@ body:not(.showdom) .b .dom{display:none}
         <span><span class="chip" style="border-style:dashed">LAN-only domain</span></span>
         <span><span class="chip" style="border-color:var(--bad);color:var(--bad)">cert needs renewal</span></span>
         <span><span class="chip" style="border-color:var(--warn);color:var(--warn)">LAN-open port</span></span>
-        <span><span class="chip" style="border-color:var(--e-env);color:var(--e-env)">docker network</span> (click: members)</span>
+        <span><span class="chip" style="border-color:var(--e-env);color:var(--e-env)">docker network</span></span><span>(click: members)</span>
       </div>
     </div>
     <div id="hostsBox" style="display:none">
@@ -194,8 +196,9 @@ body:not(.showdom) .b .dom{display:none}
       <div class="btns" style="margin-bottom:6px"><button id="allStacks">All</button><button id="noStacks">None</button></div>
       <div id="stacks"></div>
     </div>
-    <div class="stat" id="stats"></div>
+    <div class="stat grid" id="stats"></div>
     <div class="hint">Click a node for its wiring · double-click to isolate it · Esc to reset</div>
+    <div class="ver" id="ver"></div>
   </aside>
   <div id="map"><svg id="wires" aria-hidden="true"></svg><div id="zones"></div></div>
   <aside id="detail"></aside>
@@ -210,7 +213,7 @@ async function loadData(){
 loadData().then(boot);
 function boot(DATA){
 if(!DATA){document.getElementById('zones').textContent='No graph data. Run generate.py.';return;}
-if(location.protocol.startsWith('http')&&(DATA.refresh??300)>0) setInterval(async()=>{try{const r=await fetch('graph.json',{cache:'no-store'});const g=await r.json();if(g.generated!==DATA.generated)location.reload();}catch(e){}},Math.max(30,DATA.refresh??300)*1000);
+if(location.protocol.startsWith('http')&&(DATA.refresh??300)>0) setInterval(async()=>{try{const r=await fetch('graph.json',{cache:'no-store'});const g=await r.json();if(g.generated!==DATA.generated){try{sessionStorage.setItem('wharfmap.scroll',document.getElementById('map').scrollTop);}catch(e){}location.reload();}}catch(e){}},Math.max(30,DATA.refresh??300)*1000);
 const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
 const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 const C=DATA.containers, byId=Object.fromEntries(C.map(c=>[c.id,c]));
@@ -233,8 +236,14 @@ const HOSTCOL={}; HOSTS.forEach((h,i)=>HOSTCOL[h.name]=`hsl(${Math.round(i*360/H
 const hostOf=c=>c.host||HOSTS[0].name, hostTag=h=>MULTI?`<span class="host" style="--hc:${HOSTCOL[h]}">${esc(h)}</span>`:'';
 const unhost=s=>MULTI?s.replace(/^[^/]+\//,''):s;
 const ago=iso=>{const m=Math.round((Date.now()-new Date(iso))/60000);return m<2?'just now':m<120?`${m} min ago`:`${Math.round(m/60)} h ago`;};
-$('#meta').textContent=MULTI?HOSTS.map(h=>`${h.name} ${h.ip}${h.stale?' (stale, '+ago(h.generated)+')':''}`).join(' · ')+` · generated ${DATA.generated.replace('T',' ').slice(0,16)}`
-  :`${DATA.host.name} ${DATA.host.ip} · generated ${DATA.generated.replace('T',' ').slice(0,16)}`;
+// the stamp carries the server's offset (often UTC in a container); show it in the viewer's own zone
+const when=iso=>{const d=new Date(iso);return isNaN(d)?iso:d.toLocaleString(undefined,{month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'});};
+$('#meta').textContent=MULTI?HOSTS.map(h=>`${h.name} ${h.ip}${h.stale?' (stale, '+ago(h.generated)+')':''}`).join(' · ')+` · generated ${when(DATA.generated)}`
+  :`${DATA.host.name} ${DATA.host.ip} · generated ${when(DATA.generated)}`;
+$('#meta').title=`generated ${DATA.generated}`;
+// version, bottom of the sidebar; agents on another version are called out
+const VER=DATA.version||'', agents=HOSTS.filter(h=>!h.local&&h.version&&h.version!==VER);
+$('#ver').innerHTML=`<a href="https://github.com/hook-365/wharfmap/releases" target="_blank" rel="noopener" title="Wharfmap releases">wharfmap${VER?' v'+esc(VER):''}</a>${agents.length?` · agents: ${agents.map(h=>esc(h.name)+' v'+esc(h.version)).join(', ')}`:''}`;
 if(MULTI){$('#hostsBox').style.display='';for(const h of HOSTS){const l=document.createElement('label');l.className='row';l.innerHTML=`<input type="checkbox" data-host="${esc(h.name)}" checked>${hostTag(h.name)}<span class="sub">${esc(h.ip)} · ${h.containers??''} containers${h.stale?' · stale':''}</span>`;$('#hosts').appendChild(l);}}
 
 // ---- zones from homepage.group (majority per stack) ----
@@ -286,8 +295,17 @@ for(const hn of order){const mine=stacks.filter(s=>!MULTI||stackHost(s)===hn);if
   if(MULTI){const d=document.createElement('div');d.className='hosthead';d.innerHTML=hostTag(hn);stackBox.appendChild(d);}
   for(const s of mine){const l=document.createElement('label');l.className='row';l.innerHTML=`<input type="checkbox" data-stack="${esc(s)}" checked>${esc(unhost(s))}`;stackBox.appendChild(l);}}}
 
-// ---- filters ----
+// ---- filters (remembered per browser: the page reloads itself on every regenerate) ----
 const kinds=()=>new Set($$('input[data-kind]:checked').map(i=>i.dataset.kind));
+const FKEY='wharfmap.filters';
+function restoreFilters(){let f={};try{f=JSON.parse(localStorage.getItem(FKEY))||{};}catch(e){}
+  if(f.kinds)$$('input[data-kind]').forEach(i=>i.checked=f.kinds.includes(i.dataset.kind));
+  if(f.show)for(const [id,v] of Object.entries(f.show)){const el=document.getElementById(id);if(el&&el.type==='checkbox')el.checked=!!v;}
+  if(f.stacksOff)$$('input[data-stack]').forEach(i=>i.checked=!f.stacksOff.includes(i.dataset.stack));   // new stacks default to on
+  if(f.hostsOff)$$('input[data-host]').forEach(i=>i.checked=!f.hostsOff.includes(i.dataset.host));}
+function saveFilters(){try{localStorage.setItem(FKEY,JSON.stringify({kinds:[...kinds()],
+  show:Object.fromEntries($$('#rail input[type=checkbox][id]').map(i=>[i.id,i.checked])),
+  stacksOff:$$('input[data-stack]:not(:checked)').map(i=>i.dataset.stack),hostsOff:$$('input[data-host]:not(:checked)').map(i=>i.dataset.host)}));}catch(e){}}
 function applyFilters(){
   const st=new Set($$('input[data-stack]:checked').map(i=>i.dataset.stack));
   const showStopped=$('#showStopped').checked, showLan=$('#showLan').checked, showDev=$('#showDevices').checked, showNets=$('#showNets').checked;
@@ -301,12 +319,20 @@ function applyFilters(){
   $$('#lanZone .node').forEach(n=>n.classList.toggle('off',n.dataset.kind==='device'?!showDev:!showLan));
   $('#lanZone').classList.toggle('off',!(showLan||showDev));
   $('#netZone').classList.toggle('off',!showNets); document.body.classList.toggle('shownets',showNets);
-  stats(); drawWires();
+  stats(); drawWires(); saveFilters();
 }
 function stats(){
   const vis=$$('.card .node:not(.off):not([data-ghost="1"])').filter(n=>!n.closest('.off')).length, ghosts=C.filter(c=>c.ghost).length;
   const certs=DATA.ingress.filter(h=>h.cert), warn=certs.filter(h=>h.cert.warn).length, dis=DATA.ingress.filter(h=>h.enabled===false).length;
-  $('#stats').innerHTML=`${MULTI?`<b>${HOSTS.length}</b> hosts${HOSTS.some(h=>h.stale)?` (<b style="color:var(--bad)">${HOSTS.filter(h=>h.stale).length}</b> stale)`:''} · `:''}<b>${vis}</b>/${C.length-ghosts} containers${ghosts?` (+${ghosts} not created)`:''} · <b>${stacks.length}</b> stacks · <b>${DATA.ingress.length}</b> proxy hosts${dis?` (<b>${dis}</b> disabled)`:''} · <b>${DATA.networks.length}</b> networks · <b>${DATA.edges.length}</b> edges${certs.length?`<br><b>${certs.length}</b> certs · <b style="color:${warn?'var(--bad)':'inherit'}">${warn}</b> need renewal`:''}`;
+  const stale=HOSTS.filter(h=>h.stale).length, bad=`style="color:var(--bad)"`;
+  const row=(n,label,attr='')=>`<b ${attr}>${n}</b><span>${label}</span>`;
+  $('#stats').innerHTML=(MULTI?row(HOSTS.length,`hosts${stale?` <span ${bad}>(${stale} stale)</span>`:''}`):'')
+    +row(`${vis}/${C.length-ghosts}`,`containers${ghosts?` (+${ghosts} not created)`:''}`)
+    +row(stacks.length,'stacks')
+    +row(DATA.ingress.length,`proxy hosts${dis?` (${dis} disabled)`:''}`)
+    +row(DATA.networks.length,'networks')
+    +row(DATA.edges.length,'edges')
+    +(certs.length?row(certs.length,'certs')+row(warn,'need renewal',warn?bad:''):'');
 }
 $$('#rail input[type=checkbox]').forEach(i=>i.addEventListener('change',applyFilters));
 $('#allStacks').onclick=()=>{$$('input[data-stack]').forEach(i=>i.checked=true);applyFilters();};
@@ -402,6 +428,7 @@ $('#q').addEventListener('input',e=>{
   if(hit.length===1)select(hit[0].dataset.id);else if(hit.length)hit[0].scrollIntoView({block:'center'});
 });
 
-applyFilters();
+restoreFilters(); applyFilters();
+try{const y=+sessionStorage.getItem('wharfmap.scroll');sessionStorage.removeItem('wharfmap.scroll');if(y){map.style.scrollBehavior='auto';map.scrollTop=y;map.style.scrollBehavior='';drawWires();}}catch(e){}
 }
 </script>

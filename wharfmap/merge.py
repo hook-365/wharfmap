@@ -99,7 +99,7 @@ def merge(local: dict, remotes: list[dict]) -> dict:
         stale = (not is_local) and is_stale(g)
         live = sum(1 for c in g.get("containers", []) if not c.get("ghost"))
         out["hosts"].append({"name": h, "ip": g["host"]["ip"], "generated": g.get("generated", ""),
-                             "local": is_local, "stale": stale, "containers": live})
+                             "local": is_local, "stale": stale, "containers": live, "version": g.get("version", "")})
         p = prefixed(g, h)
         for c in p["containers"]:
             c["stale"] = stale

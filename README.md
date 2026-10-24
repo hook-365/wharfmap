@@ -32,7 +32,9 @@ Host-network containers, LAN-open ports, public domains, and Docker network memb
 up as badges on each container. Click one to see its ports, networks, domains, and
 everything it talks to, with the wiring drawn. Double-click to isolate it. Search matches
 names, images, ports, IPs, and domains. There's a light theme and a dark theme; it follows
-your system until you click the toggle. Python 3.11 or newer; the image ships 3.14.
+your system until you click the toggle. The sidebar filters are remembered per browser, so the
+page keeps your view when it reloads itself after each regenerate; times are shown in your own
+zone, and the running version sits at the bottom of the sidebar. Python 3.11 or newer; the image ships 3.14.
 
 ## Running it
 

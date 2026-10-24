@@ -6,7 +6,7 @@ import json
 import pathlib
 import re
 
-from . import homepage, ingress, refs
+from . import __version__, homepage, ingress, refs
 from .config import Config
 from .discover import discover
 
@@ -46,9 +46,10 @@ def build(cfg: Config) -> dict:
     generated = datetime.datetime.now().astimezone().isoformat(timespec="seconds")
     return {
         "generated": generated,
+        "version": __version__,
         "title": cfg.title,
         "host": {"name": cfg.host_name, "ip": cfg.host_ip, "auto_ip": cfg.host_ip_auto},
-        "hosts": [{"name": cfg.host_name, "ip": cfg.host_ip, "generated": generated, "local": True, "stale": False,
+        "hosts": [{"name": cfg.host_name, "ip": cfg.host_ip, "generated": generated, "version": __version__, "local": True, "stale": False,
                    "containers": sum(1 for c in containers if not c.get("ghost"))}],
         "zones": {"order": order, "groups": cfg.zone_of_group},
         "links": cfg.links,
