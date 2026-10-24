@@ -36,6 +36,9 @@ header h1{font-size:16px;margin:0;font-weight:600;letter-spacing:.01em}
 header .meta{color:var(--muted);font-family:var(--mono);font-size:12px}
 #theme{background:var(--bg);border:1px solid var(--line);color:var(--muted);border-radius:6px;padding:5px 9px;font:inherit;font-size:12px;cursor:pointer;font-family:var(--mono)}
 #theme:hover{color:var(--fg);border-color:var(--accent)}
+.gb{display:flex;align-items:center;gap:6px;color:var(--muted);font-family:var(--mono);font-size:12px}
+#groupby{background:var(--bg);border:1px solid var(--line);color:var(--fg);border-radius:6px;padding:5px 7px;font:inherit;font-size:12px;font-family:var(--mono);cursor:pointer}
+#groupby:hover,#groupby:focus-visible{border-color:var(--accent);outline:none}
 header input{background:var(--bg);border:1px solid var(--line);color:var(--fg);border-radius:6px;padding:6px 10px;font:inherit;min-width:220px}
 main{flex:1;display:grid;grid-template-columns:210px 1fr 0;min-height:0;transition:grid-template-columns .15s}
 main.open{grid-template-columns:210px 1fr 340px}
@@ -70,7 +73,11 @@ button:hover,button:focus-visible{border-color:var(--accent);outline:none}
 #map{position:relative;overflow:auto;background:var(--canvas);min-width:0;padding:18px 22px 40px;scroll-behavior:smooth}
 #wires{position:absolute;left:0;top:0;pointer-events:none;overflow:visible;z-index:3}
 .zone{margin:0 0 26px;position:relative;z-index:1}
-.zone>h2{font-size:13px;letter-spacing:.06em;margin:0 0 10px;padding-bottom:4px;border-bottom:1px dashed var(--stack-line)}
+.zone>h2{font-size:13px;letter-spacing:.06em;margin:0 0 10px;padding-bottom:4px;border-bottom:1px dashed var(--stack-line);display:flex;align-items:baseline;gap:8px}
+.zone>h2 .sub{font-weight:400;text-transform:none;letter-spacing:0;font-family:var(--mono);font-size:11px}
+.zone>h2 .n{font-weight:400;margin-left:auto;font-family:var(--mono)}
+.zone>h2 .dotc{width:9px;height:9px;border-radius:50%;background:var(--nc);flex:none;align-self:center}
+.node .b .ip{font-variant-numeric:tabular-nums;color:var(--fg)}
 .cards{display:flex;flex-wrap:wrap;gap:14px;align-items:flex-start}
 .card{background:var(--stack);border:1px solid var(--stack-line);border-radius:10px;padding:8px 10px 10px;min-width:188px}
 .card.sel{border-color:var(--accent)}
@@ -140,6 +147,7 @@ body:not(.showdom) .b .dom{display:none}
   aside#rail{display:none} #railtoggle{display:inline-block}
   #detail{border-left:0;border-top:1px solid var(--line);max-height:40vh}
   header input{min-width:0;flex:1}
+  .gb{order:5}
   #map{padding:12px 14px 30px}
   .foot{width:100%;justify-content:flex-end}
   .chips>*{width:100%}
@@ -150,6 +158,7 @@ body:not(.showdom) .b .dom{display:none}
 <header>
   <h1 id="title">Wharfmap</h1>
   <span class="meta" id="meta"></span>
+  <label class="gb">group by <select id="groupby" aria-label="Group containers by"></select></label>
   <button id="railtoggle">Filters</button>
   <input id="q" type="search" placeholder="Find a container, port, domain…" aria-label="Search">
   <button id="theme" title="Theme: follows your system until you click" aria-label="Toggle theme">auto</button>
@@ -269,26 +278,54 @@ const edgesOf=id=>EDGES.filter(e=>e.source===id||e.target===id);
 const titleOf=id=>byId[id]?.title||(id.startsWith('lan:')?DATA.lan_hosts[id.slice(4)]?.label:id.startsWith('net:')?netShort(id.slice(4)):id.startsWith('dom:')?id.slice(4):id)||id;
 
 // ---- render ----
-const nodeHtml=c=>{const d=domsOf[c.id]||[];const b=[];
+const effNets=c=>{const n=Object.keys(c.ips).filter(x=>NETCOL[x]);return n.length?n:(c.netns&&byId[c.netns]?Object.keys(byId[c.netns].ips).filter(x=>NETCOL[x]):[]);};
+const nodeHtml=(c,net)=>{const d=domsOf[c.id]||[];const b=[];
+  if(net){const ip=c.ips[net]||byId[c.netns]?.ips?.[net];if(ip)b.push(`<span class="ip" title="address on ${esc(net)}">${esc(ip)}</span>`);
+    const also=effNets(c).filter(n=>n!==net);if(also.length)b.push(`<span title="also on ${esc(also.map(netShort).join(', '))}">+${also.length} net${also.length>1?'s':''}</span>`);}
   if(c.ghost)b.push(`<span title="${esc(c.desc)}">not created</span>`);
   if(c.hostnet)b.push('<span title="host network">host net</span>');
   if(lanOpen(c))b.push('<span class="lan" title="port reachable from the LAN">LAN-open</span>');
-  for(const n of Object.keys(c.ips)) if(NETCOL[n]) b.push(`<span class="netb" data-net="net:${esc(n)}" style="--nc:${NETCOL[n]}" title="${esc(n)} ${esc(c.ips[n])}">${esc(netShort(n))}</span>`);
+  for(const n of Object.keys(c.ips)) if(NETCOL[n]&&n!==net) b.push(`<span class="netb" data-net="net:${esc(n)}" style="--nc:${NETCOL[n]}" title="${esc(n)} ${esc(c.ips[n])}">${esc(netShort(n))}</span>`);
   for(const x of d)b.push(`<span class="dom${x.int?' int':''}${x.h.cert?.warn||x.h.error?' warn':''}${x.h.enabled===false?' off':''}" title="${esc(domTitle(x.h))}">${esc(x.d)}</span>`);
   return `<button class="node" data-id="${esc(c.id)}" data-status="${stateOf(c)}" data-ghost="${c.ghost?1:0}" data-hostnet="${c.hostnet?1:0}" data-stack="${esc(c.stack)}" title="${esc(c.name)} · ${esc(c.image)}"><span class="dot"></span><span class="t">${esc(c.title)}</span>${b.length?`<span class="b">${b.join('')}</span>`:''}</button>`;};
 const sortC=(a,b)=>{const an=!!nsKids[a.id],bn=!!nsKids[b.id];if(an!==bn)return an?-1:1;return a.title.localeCompare(b.title);};
-let html=`<section class="zone" id="netZone"><h2>Docker networks</h2><div class="aux">${NETS.map(n=>`<button class="node net" data-id="net:${esc(n.name)}" style="--nc:${NETCOL[n.name]}" title="${esc(n.subnet||'')}"><span class="t">${n.host?hostTag(n.host):''}${esc(netShort(n.name))}<span class="n">${n.members.length}</span></span></button>`).join('')}</div></section>`;
-for(const z of ZONE_ORDER){const sts=stacks.filter(s=>zoneOfStack[s]===z);if(!sts.length)continue;
-  html+=`<section class="zone" data-zone="${esc(z)}"><h2>${esc(z)}</h2><div class="cards">`;
-  for(const st of sts){const kids=C.filter(c=>c.stack===st&&!c.netns).sort(sortC);const total=C.filter(c=>c.stack===st).length;
-    const items=kids.map(c=>nsKids[c.id]?`<div class="ns" data-ns="${esc(c.id)}"><div class="lbl">shared netns · ${esc(c.title)}</div>${nodeHtml(c)}${nsKids[c.id].sort(sortC).map(nodeHtml).join('')}</div>`:nodeHtml(c));
-    const cols=Math.min(4,Math.ceil(total/8));
-    const hst=hostOf(kids[0]||C.find(c=>c.stack===st)), stale=C.some(c=>c.stack===st&&c.stale);
-    html+=`<div class="card" data-stack="${esc(st)}" data-host="${esc(hst)}" data-stale="${stale?1:0}"><h3>${hostTag(hst)}<span>${esc(unhost(st))}</span><span class="n">${total}</span></h3><div class="chips" style="column-count:${cols};width:${cols*180+(cols-1)*8}px">${items.join('')}</div></div>`;}
-  html+=`</div></section>`;}
-html+=`<section class="zone" id="lanZone"><h2>LAN hosts &amp; devices</h2><div class="aux">${Object.entries(DATA.lan_hosts).sort((a,b)=>a[1].label.localeCompare(b[1].label)).map(([ip,h])=>`<button class="node ${h.kind==='device'?'dev':'lan'}" data-id="lan:${esc(ip)}" data-kind="${esc(h.kind)}" title="${esc(ip)}"><span class="t">${esc(h.label)}</span></button>`).join('')}</div></section>`;
-$('#zones').innerHTML=html;
-const NODE=id=>document.querySelector(`.node[data-id="${CSS.escape(id)}"]`);
+// ---- grouping: every view is sections -> stack cards -> the same chips; only the membership test changes ----
+const exposure=c=>{const d=domsOf[c.id]||[];if(d.some(x=>x.pub&&x.h.enabled!==false))return 'Public domain';if(d.length)return 'LAN-only domain';if(c.hostnet||lanOpen(c))return 'LAN-open port';return 'Internal only';};
+const statusOf=c=>c.ghost?'Not created':c.status!=='running'?'Stopped':(c.health&&c.health!=='healthy')?'Unhealthy / starting':'Running';
+const GROUPS={
+  zone:{label:'zone',sections:()=>ZONE_ORDER.map(z=>({key:z,title:z,test:c=>zoneOfStack[c.stack]===z}))},
+  stack:{label:'stack',sections:()=>[{key:'all',title:'All stacks',test:()=>true}]},
+  network:{label:'network',sections:()=>[
+    {key:'host',title:'Host network',sub:'on the host\'s own stack',test:c=>c.hostnet},
+    ...NETS.map(n=>({key:n.name,title:netShort(n.name),host:n.host,sub:[n.driver,n.subnet,n.gateway?'gw '+n.gateway:'',n.ip_range?'dyn '+n.ip_range:''].filter(Boolean).join(' · '),col:NETCOL[n.name],net:n.name,test:c=>effNets(c).includes(n.name)})),
+    {key:'none',title:'No shared network',sub:'default bridge, none, or a network with a single member',test:c=>!c.hostnet&&!effNets(c).length}]},
+  exposure:{label:'exposure',sections:()=>[['Public domain','reachable from the internet through the proxy'],['LAN-only domain','proxy host behind an internal ACL'],['LAN-open port','a port or the host network, no proxy'],['Internal only','only other containers can reach it']].map(([k,sub])=>({key:k,title:k,sub,test:c=>exposure(c)===k}))},
+  status:{label:'status',sections:()=>['Running','Unhealthy / starting','Stopped','Not created'].map(k=>({key:k,title:k,test:c=>statusOf(c)===k}))},
+};
+if(MULTI) GROUPS.host={label:'host',sections:()=>HOSTS.map(h=>({key:h.name,title:h.name,sub:h.ip+(h.stale?' · stale':''),test:c=>hostOf(c)===h.name}))};
+let GROUP='zone';
+$('#groupby').innerHTML=Object.entries(GROUPS).map(([k,g])=>`<option value="${k}">${g.label}</option>`).join('');
+function render(mode){
+  GROUP=GROUPS[mode]?mode:'zone'; $('#groupby').value=GROUP;
+  let html=GROUP==='network'?'':`<section class="zone" id="netZone"><h2>Docker networks</h2><div class="aux">${NETS.map(n=>`<button class="node net" data-id="net:${esc(n.name)}" style="--nc:${NETCOL[n.name]}" title="${esc(n.subnet||'')}"><span class="t">${n.host?hostTag(n.host):''}${esc(netShort(n.name))}<span class="n">${n.members.length}</span></span></button>`).join('')}</div></section>`;;
+  for(const sec of GROUPS[GROUP].sections()){
+    const members=C.filter(sec.test); if(!members.length)continue;
+    const mem=new Set(members.map(c=>c.id)), sts=[...new Set(members.map(c=>c.stack))].sort();
+    html+=`<section class="zone" data-zone="${esc(sec.key)}"${sec.col?` style="--nc:${sec.col}"`:''}><h2>${sec.col?'<span class="dotc"></span>':''}${sec.host?hostTag(sec.host):''}<span>${esc(sec.title)}</span>${sec.sub?`<span class="sub">${esc(sec.sub)}</span>`:''}<span class="n">${members.length}</span></h2><div class="cards">`;
+    for(const st of sts){
+      const mine=members.filter(c=>c.stack===st), top=mine.filter(c=>!(c.netns&&mem.has(c.netns))).sort(sortC);
+      const items=top.map(c=>{const kids=(nsKids[c.id]||[]).filter(k=>mem.has(k.id)).sort(sortC);
+        return kids.length?`<div class="ns" data-ns="${esc(c.id)}"><div class="lbl">shared netns · ${esc(c.title)}</div>${nodeHtml(c,sec.net)}${kids.map(k=>nodeHtml(k,sec.net)).join('')}</div>`:nodeHtml(c,sec.net);});
+      const total=mine.length, cols=Math.min(4,Math.ceil(total/8));
+      const hst=hostOf(mine[0]), stale=mine.some(c=>c.stale);
+      html+=`<div class="card" data-stack="${esc(st)}" data-host="${esc(hst)}" data-stale="${stale?1:0}"><h3>${hostTag(hst)}<span>${esc(unhost(st))}</span><span class="n">${total}</span></h3><div class="chips" style="column-count:${cols};width:${cols*180+(cols-1)*8}px">${items.join('')}</div></div>`;}
+    html+=`</div></section>`;}
+  html+=`<section class="zone" id="lanZone"><h2>LAN hosts &amp; devices</h2><div class="aux">${Object.entries(DATA.lan_hosts).sort((a,b)=>a[1].label.localeCompare(b[1].label)).map(([ip,h])=>`<button class="node ${h.kind==='device'?'dev':'lan'}" data-id="lan:${esc(ip)}" data-kind="${esc(h.kind)}" title="${esc(ip)}"><span class="t">${esc(h.label)}</span></button>`).join('')}</div></section>`;
+  $('#zones').innerHTML=html;
+}
+render(GROUP);
+$('#groupby').onchange=()=>{clear();M.classList.remove('open');render($('#groupby').value);applyFilters();};
+const NODE=id=>document.querySelector(`.node[data-id="${CSS.escape(id)}"]`), NODES=id=>$$(`.node[data-id="${CSS.escape(id)}"]`);
 const stackBox=$('#stacks');
 {const stackHost=s=>hostOf(C.find(c=>c.stack===s)), order=MULTI?HOSTS.map(h=>h.name):[null];
 for(const hn of order){const mine=stacks.filter(s=>!MULTI||stackHost(s)===hn);if(!mine.length)continue;
@@ -299,11 +336,12 @@ for(const hn of order){const mine=stacks.filter(s=>!MULTI||stackHost(s)===hn);if
 const kinds=()=>new Set($$('input[data-kind]:checked').map(i=>i.dataset.kind));
 const FKEY='wharfmap.filters';
 function restoreFilters(){let f={};try{f=JSON.parse(localStorage.getItem(FKEY))||{};}catch(e){}
+  if(f.group&&GROUPS[f.group]&&f.group!==GROUP)render(f.group);
   if(f.kinds)$$('input[data-kind]').forEach(i=>i.checked=f.kinds.includes(i.dataset.kind));
   if(f.show)for(const [id,v] of Object.entries(f.show)){const el=document.getElementById(id);if(el&&el.type==='checkbox')el.checked=!!v;}
   if(f.stacksOff)$$('input[data-stack]').forEach(i=>i.checked=!f.stacksOff.includes(i.dataset.stack));   // new stacks default to on
   if(f.hostsOff)$$('input[data-host]').forEach(i=>i.checked=!f.hostsOff.includes(i.dataset.host));}
-function saveFilters(){try{localStorage.setItem(FKEY,JSON.stringify({kinds:[...kinds()],
+function saveFilters(){try{localStorage.setItem(FKEY,JSON.stringify({group:GROUP,kinds:[...kinds()],
   show:Object.fromEntries($$('#rail input[type=checkbox][id]').map(i=>[i.id,i.checked])),
   stacksOff:$$('input[data-stack]:not(:checked)').map(i=>i.dataset.stack),hostsOff:$$('input[data-host]:not(:checked)').map(i=>i.dataset.host)}));}catch(e){}}
 function applyFilters(){
@@ -318,11 +356,11 @@ function applyFilters(){
   $$('.zone[data-zone]').forEach(z=>z.classList.toggle('off',![...z.querySelectorAll('.card')].some(k=>!k.classList.contains('off'))));
   $$('#lanZone .node').forEach(n=>n.classList.toggle('off',n.dataset.kind==='device'?!showDev:!showLan));
   $('#lanZone').classList.toggle('off',!(showLan||showDev));
-  $('#netZone').classList.toggle('off',!showNets); document.body.classList.toggle('shownets',showNets);
+  $('#netZone')?.classList.toggle('off',!showNets); document.body.classList.toggle('shownets',showNets);
   stats(); drawWires(); saveFilters();
 }
 function stats(){
-  const vis=$$('.card .node:not(.off):not([data-ghost="1"])').filter(n=>!n.closest('.off')).length, ghosts=C.filter(c=>c.ghost).length;
+  const vis=new Set($$('.card .node:not(.off):not([data-ghost="1"])').filter(n=>!n.closest('.off')).map(n=>n.dataset.id)).size, ghosts=C.filter(c=>c.ghost).length;
   const certs=DATA.ingress.filter(h=>h.cert), warn=certs.filter(h=>h.cert.warn).length, dis=DATA.ingress.filter(h=>h.enabled===false).length;
   const stale=HOSTS.filter(h=>h.stale).length, bad=`style="color:var(--bad)"`;
   const row=(n,label,attr='')=>`<b ${attr}>${n}</b><span>${label}</span>`;
@@ -400,11 +438,11 @@ function showLan(ip){const h=DATA.lan_hosts[ip];openD(`<h3>${esc(h.label)}</h3><
 function select(id){
   const el=NODE(id); if(!el)return;
   $$('.node.hl,.node.nb').forEach(n=>n.classList.remove('hl','nb')); $$('.card.sel').forEach(k=>k.classList.remove('sel'));
-  selected=id; el.classList.add('hl'); document.body.classList.add('dimmed');
+  selected=id; NODES(id).forEach(x=>x.classList.add('hl')); document.body.classList.add('dimmed');
   const nbs=new Set(edgesOf(id).map(e=>e.source===id?e.target:e.source));
   if(byId[id]?.netns)nbs.add(byId[id].netns); for(const k of nsKids[id]||[])nbs.add(k.id);
   if(id.startsWith('net:')) for(const m of DATA.networks.find(n=>'net:'+n.name===id)?.members||[]) nbs.add(m);
-  for(const n of nbs){const x=NODE(n);if(x)x.classList.add('nb');}
+  for(const n of nbs) NODES(n).forEach(x=>x.classList.add('nb'));
   $$('.netb.on').forEach(b=>b.classList.remove('on')); if(id.startsWith('net:')) $$(`.netb[data-net="${CSS.escape(id)}"]`).forEach(b=>b.classList.add('on'));
   if(byId[id])showContainer(byId[id]);else if(id.startsWith('lan:'))showLan(id.slice(4));else if(id.startsWith('net:'))showNetwork(DATA.networks.find(n=>'net:'+n.name===id));
   drawWires(); el.scrollIntoView({block:'nearest',inline:'nearest'});
